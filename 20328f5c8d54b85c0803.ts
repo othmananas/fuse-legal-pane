@@ -119,8 +119,8 @@ function _sendChat() {
       message,
       typing,
       documentText,
-      result,
       started,
+      result,
       _iterator,
       _step,
       extraction,
@@ -163,10 +163,6 @@ function _sendChat() {
           return getDocumentText();
         case 4:
           documentText = _context4.v;
-          if (!(action === "review")) {
-            _context4.n = 7;
-            break;
-          }
           _context4.n = 5;
           return post("/chat", {
             session_id: sessionId,
@@ -177,22 +173,9 @@ function _sendChat() {
         case 5:
           started = _context4.v;
           _context4.n = 6;
-          return pollReview(started.job_id);
+          return pollReview(started.job_id, action);
         case 6:
           result = _context4.v;
-          _context4.n = 9;
-          break;
-        case 7:
-          _context4.n = 8;
-          return post("/chat", {
-            session_id: sessionId,
-            message: message,
-            document_text: documentText || null,
-            action: action
-          });
-        case 8:
-          result = _context4.v;
-        case 9:
           if (result.reply) {
             appendBubble("assistant", result.reply);
           }
@@ -211,62 +194,63 @@ function _sendChat() {
             setStatus("Adding suggested edits to the document…");
           }
           _iterator2 = _createForOfIteratorHelper(result.findings);
-          _context4.p = 10;
+          _context4.p = 7;
           _iterator2.s();
-        case 11:
+        case 8:
           if ((_step2 = _iterator2.n()).done) {
-            _context4.n = 14;
+            _context4.n = 11;
             break;
           }
           finding = _step2.value;
           card = renderFinding(finding);
           appendCard(card);
           if (!inWord) {
-            _context4.n = 13;
+            _context4.n = 10;
             break;
           }
           _t = markApplied;
           _t2 = card;
-          _context4.n = 12;
+          _context4.n = 9;
           return applyFindingInline(finding);
-        case 12:
+        case 9:
           _t(_t2, _context4.v);
-        case 13:
-          _context4.n = 11;
+        case 10:
+          _context4.n = 8;
           break;
+        case 11:
+          _context4.n = 13;
+          break;
+        case 12:
+          _context4.p = 12;
+          _t3 = _context4.v;
+          _iterator2.e(_t3);
+        case 13:
+          _context4.p = 13;
+          _iterator2.f();
+          return _context4.f(13);
         case 14:
+          setStatus("Ready.");
           _context4.n = 16;
           break;
         case 15:
           _context4.p = 15;
-          _t3 = _context4.v;
-          _iterator2.e(_t3);
-        case 16:
-          _context4.p = 16;
-          _iterator2.f();
-          return _context4.f(16);
-        case 17:
-          setStatus("Ready.");
-          _context4.n = 19;
-          break;
-        case 18:
-          _context4.p = 18;
           _t4 = _context4.v;
           setStatus(String(_t4));
-        case 19:
-          _context4.p = 19;
+        case 16:
+          _context4.p = 16;
           typing.remove();
           busy = false;
-          return _context4.f(19);
-        case 20:
+          return _context4.f(16);
+        case 17:
           return _context4.a(2);
       }
-    }, _callee4, null, [[10, 15, 16, 17], [3, 18, 19, 20]]);
+    }, _callee4, null, [[7, 12, 13, 14], [3, 15, 16, 17]]);
   }));
   return _sendChat.apply(this, arguments);
 }
 var PHASE_LABELS = {
   starting: "starting up",
+  thinking: "thinking",
   classify: "classifying the document",
   review: "reviewing against the style guide",
   verify: "verifying and drafting suggestions"
@@ -276,10 +260,22 @@ function pollReview(_x4) {
 }
 function _pollReview() {
   _pollReview = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(jobId) {
-    var attempt, _ref4, _PHASE_LABELS, _state$phase, response, state, _state$detail;
+    var action,
+      interval,
+      attempt,
+      _ref4,
+      _PHASE_LABELS,
+      _state$phase,
+      response,
+      state,
+      _state$detail,
+      label,
+      _args5 = arguments;
     return _regenerator().w(function (_context5) {
       while (1) switch (_context5.n) {
         case 0:
+          action = _args5.length > 1 && _args5[1] !== undefined ? _args5[1] : "review";
+          interval = action === "chat" ? 1500 : 4000;
           attempt = 0;
         case 1:
           if (!(attempt < 300)) {
@@ -288,7 +284,7 @@ function _pollReview() {
           }
           _context5.n = 2;
           return new Promise(function (resolve) {
-            return setTimeout(resolve, 4000);
+            return setTimeout(resolve, interval);
           });
         case 2:
           _context5.n = 3;
@@ -321,13 +317,14 @@ function _pollReview() {
           }
           throw new Error((_state$detail = state.detail) !== null && _state$detail !== void 0 ? _state$detail : "review failed");
         case 7:
-          setStatus("Review running: ".concat((_ref4 = (_PHASE_LABELS = PHASE_LABELS[(_state$phase = state.phase) !== null && _state$phase !== void 0 ? _state$phase : ""]) !== null && _PHASE_LABELS !== void 0 ? _PHASE_LABELS : state.phase) !== null && _ref4 !== void 0 ? _ref4 : "working", "\u2026"));
+          label = (_ref4 = (_PHASE_LABELS = PHASE_LABELS[(_state$phase = state.phase) !== null && _state$phase !== void 0 ? _state$phase : ""]) !== null && _PHASE_LABELS !== void 0 ? _PHASE_LABELS : state.phase) !== null && _ref4 !== void 0 ? _ref4 : "working";
+          setStatus(action === "review" ? "Review running: ".concat(label, "\u2026") : "The agent is ".concat(label, "\u2026"));
         case 8:
           attempt++;
           _context5.n = 1;
           break;
         case 9:
-          throw new Error("review timed out after 20 minutes");
+          throw new Error("the agent timed out");
         case 10:
           return _context5.a(2);
       }
