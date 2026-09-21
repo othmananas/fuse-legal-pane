@@ -128,6 +128,7 @@ function _sendChat() {
       _step2,
       finding,
       card,
+      _message,
       _args4 = arguments,
       _t,
       _t2,
@@ -235,7 +236,9 @@ function _sendChat() {
         case 15:
           _context4.p = 15;
           _t4 = _context4.v;
-          setStatus(String(_t4));
+          _message = _t4 instanceof Error ? _t4.message : String(_t4);
+          appendBubble("assistant", "Something went wrong: ".concat(_message, ". Please try again."));
+          setStatus("Error — see chat.");
         case 16:
           _context4.p = 16;
           typing.remove();
