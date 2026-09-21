@@ -467,24 +467,15 @@ function planAction(finding) {
       }
     };
   }
-  var anchor = searchAnchor(finding);
-  if (anchor) {
-    return {
-      anchor: anchor,
-      kind: "comment",
-      buildOoxml: function buildOoxml(rangeText) {
-        return commentOnlyOoxml(rangeText, comment);
-      }
-    };
-  }
   return null;
 }
+var APPLY_PAUSE_MS = 150;
 function applyAllFindings(_x6) {
   return _applyAllFindings.apply(this, arguments);
 }
 function _applyAllFindings() {
   _applyAllFindings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(findings) {
-    var plans, results, pending, _t2, _t3;
+    var plans, results, total, pending, _t3, _t4;
     return _regenerator().w(function (_context0) {
       while (1) switch (_context0.p = _context0.n) {
         case 0:
@@ -492,13 +483,16 @@ function _applyAllFindings() {
           results = findings.map(function () {
             return "not-found";
           });
+          total = plans.filter(function (plan) {
+            return plan !== null;
+          }).length;
           _context0.p = 1;
           _context0.n = 2;
           return Word.run(/*#__PURE__*/function () {
             var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(context) {
-              var searches;
+              var searches, applied, index, _searches$index, plan, items, _t2;
               return _regenerator().w(function (_context8) {
-                while (1) switch (_context8.n) {
+                while (1) switch (_context8.p = _context8.n) {
                   case 0:
                     searches = plans.map(function (plan) {
                       return plan ? context.document.body.search(plan.anchor.slice(0, SEARCH_LIMIT), {
@@ -506,27 +500,52 @@ function _applyAllFindings() {
                       }) : null;
                     });
                     searches.forEach(function (collection) {
-                      return collection === null || collection === void 0 ? void 0 : collection.load("items,text");
+                      return collection === null || collection === void 0 ? void 0 : collection.load("items");
                     });
                     _context8.n = 1;
                     return context.sync();
                   case 1:
-                    plans.forEach(function (plan, index) {
-                      var _searches$index;
-                      var items = (_searches$index = searches[index]) === null || _searches$index === void 0 ? void 0 : _searches$index.items;
-                      if (!plan || !items || items.length === 0) {
-                        return;
-                      }
-                      var range = items[0];
-                      range.insertOoxml(plan.buildOoxml(range.text), plan.kind === "insert" ? Word.InsertLocation.after : Word.InsertLocation.replace);
-                      results[index] = plan.kind;
-                    });
-                    _context8.n = 2;
-                    return context.sync();
+                    applied = 0;
+                    index = 0;
                   case 2:
+                    if (!(index < plans.length)) {
+                      _context8.n = 9;
+                      break;
+                    }
+                    plan = plans[index];
+                    items = (_searches$index = searches[index]) === null || _searches$index === void 0 ? void 0 : _searches$index.items;
+                    if (!(!plan || !items || items.length === 0)) {
+                      _context8.n = 3;
+                      break;
+                    }
+                    return _context8.a(3, 8);
+                  case 3:
+                    applied += 1;
+                    setStatus("Applying edit ".concat(applied, " of ").concat(total, "\u2026"));
+                    items[0].insertOoxml(plan.buildOoxml(), plan.kind === "insert" ? Word.InsertLocation.after : Word.InsertLocation.replace);
+                    _context8.p = 4;
+                    _context8.n = 5;
+                    return context.sync();
+                  case 5:
+                    results[index] = plan.kind;
+                    _context8.n = 7;
+                    break;
+                  case 6:
+                    _context8.p = 6;
+                    _t2 = _context8.v;
+                  case 7:
+                    _context8.n = 8;
+                    return new Promise(function (resolve) {
+                      return setTimeout(resolve, APPLY_PAUSE_MS);
+                    });
+                  case 8:
+                    index++;
+                    _context8.n = 2;
+                    break;
+                  case 9:
                     return _context8.a(2);
                 }
-              }, _callee8);
+              }, _callee8, null, [[4, 6]]);
             }));
             return function (_x16) {
               return _ref6.apply(this, arguments);
@@ -537,7 +556,7 @@ function _applyAllFindings() {
           break;
         case 3:
           _context0.p = 3;
-          _t2 = _context0.v;
+          _t3 = _context0.v;
         case 4:
           pending = findings.map(function (finding, index) {
             return {
@@ -554,8 +573,9 @@ function _applyAllFindings() {
           }
           return _context0.a(2, results);
         case 5:
-          _context0.p = 5;
-          _context0.n = 6;
+          setStatus("Adding comments…");
+          _context0.p = 6;
+          _context0.n = 7;
           return Word.run(/*#__PURE__*/function () {
             var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(context) {
               var anchored;
@@ -582,7 +602,7 @@ function _applyAllFindings() {
                       var items = (_anchored$pendingInde = anchored[pendingIndex]) === null || _anchored$pendingInde === void 0 ? void 0 : _anchored$pendingInde.items;
                       var range = items && items.length > 0 ? items[0] : context.document.body.paragraphs.getFirst().getRange();
                       range.insertComment("".concat(AI_AUTHOR, " \u2014 ").concat(commentText(finding)));
-                      results[index] = "user-comment";
+                      results[index] = "comment";
                     });
                     _context9.n = 2;
                     return context.sync();
@@ -595,16 +615,16 @@ function _applyAllFindings() {
               return _ref8.apply(this, arguments);
             };
           }());
-        case 6:
-          _context0.n = 8;
-          break;
         case 7:
-          _context0.p = 7;
-          _t3 = _context0.v;
+          _context0.n = 9;
+          break;
         case 8:
+          _context0.p = 8;
+          _t4 = _context0.v;
+        case 9:
           return _context0.a(2, results);
       }
-    }, _callee0, null, [[5, 7], [1, 3]]);
+    }, _callee0, null, [[6, 8], [1, 3]]);
   }));
   return _applyAllFindings.apply(this, arguments);
 }
@@ -626,9 +646,6 @@ function insertOnlyOoxml(newText, comment) {
   var date = localWallClock();
   return ooxmlPackage("<w:ins w:id=\"102\" w:author=\"".concat(AI_AUTHOR, "\" w:date=\"").concat(date, "\">\n       <w:r><w:t xml:space=\"preserve\">").concat(xmlEscape(" " + newText), "</w:t></w:r>\n     </w:ins>"), comment);
 }
-function commentOnlyOoxml(anchorText, comment) {
-  return ooxmlPackage("<w:r><w:t xml:space=\"preserve\">".concat(xmlEscape(anchorText), "</w:t></w:r>"), comment);
-}
 function ooxmlPackage(paragraphInner, comment) {
   var date = localWallClock();
   return "<?xml version=\"1.0\" standalone=\"yes\"?>\n<?mso-application progid=\"Word.Document\"?>\n<pkg:package xmlns:pkg=\"http://schemas.microsoft.com/office/2006/xmlPackage\">\n  <pkg:part pkg:name=\"/_rels/.rels\" pkg:contentType=\"application/vnd.openxmlformats-package.relationships+xml\">\n    <pkg:xmlData>\n      <Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n        <Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>\n      </Relationships>\n    </pkg:xmlData>\n  </pkg:part>\n  <pkg:part pkg:name=\"/word/_rels/document.xml.rels\" pkg:contentType=\"application/vnd.openxmlformats-package.relationships+xml\">\n    <pkg:xmlData>\n      <Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n        <Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments\" Target=\"comments.xml\"/>\n      </Relationships>\n    </pkg:xmlData>\n  </pkg:part>\n  <pkg:part pkg:name=\"/word/comments.xml\" pkg:contentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml\">\n    <pkg:xmlData>\n      <w:comments xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\n        <w:comment w:id=\"1\" w:author=\"".concat(AI_AUTHOR, "\" w:initials=\"AI\" w:date=\"").concat(date, "\">\n          <w:p><w:r><w:t xml:space=\"preserve\">").concat(xmlEscape(comment), "</w:t></w:r></w:p>\n        </w:comment>\n      </w:comments>\n    </pkg:xmlData>\n  </pkg:part>\n  <pkg:part pkg:name=\"/word/document.xml\" pkg:contentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\">\n    <pkg:xmlData>\n      <w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\n        <w:body>\n          <w:p>\n            <w:commentRangeStart w:id=\"1\"/>\n            ").concat(paragraphInner, "\n            <w:commentRangeEnd w:id=\"1\"/>\n            <w:r><w:commentReference w:id=\"1\"/></w:r>\n          </w:p>\n        </w:body>\n      </w:document>\n    </pkg:xmlData>\n  </pkg:part>\n</pkg:package>");
@@ -636,7 +653,7 @@ function ooxmlPackage(paragraphInner, comment) {
 function markApplied(card, applied) {
   var note = document.createElement("p");
   note.className = "card-note";
-  note.textContent = applied === "redline" ? "Redline suggested in the document, attributed to Fuse Legal AI" : applied === "insert" ? "Insertion suggested in the document, attributed to Fuse Legal AI" : applied === "comment" ? "Comment added in the document, attributed to Fuse Legal AI" : applied === "user-comment" ? "Comment added in the document (attributed to you)" : "Clause not found in the document";
+  note.textContent = applied === "redline" ? "Redline suggested in the document, attributed to Fuse Legal AI" : applied === "insert" ? "Insertion suggested in the document, attributed to Fuse Legal AI" : applied === "comment" ? "Comment added in the document (prefixed Fuse Legal AI)" : "Clause not found in the document";
   card.insertBefore(note, card.querySelector("button"));
 }
 function acceptFinding(_x7, _x8) {
@@ -645,7 +662,7 @@ function acceptFinding(_x7, _x8) {
 function _acceptFinding() {
   _acceptFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(finding, card) {
     var _finding$suggestion4;
-    var inserted, _t4;
+    var inserted, _t5;
     return _regenerator().w(function (_context10) {
       while (1) switch (_context10.p = _context10.n) {
         case 0:
@@ -690,7 +707,7 @@ function _acceptFinding() {
           break;
         case 3:
           _context10.p = 3;
-          _t4 = _context10.v;
+          _t5 = _context10.v;
           setStatus("Could not accept the tracked change here; accept it from Word's review pane.");
         case 4:
           _context10.n = 5;
@@ -711,7 +728,7 @@ function rejectFinding(_x9, _x0) {
 function _rejectFinding() {
   _rejectFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(finding, card) {
     var _finding$suggestion5;
-    var reason, inserted, _t5;
+    var reason, inserted, _t6;
     return _regenerator().w(function (_context12) {
       while (1) switch (_context12.p = _context12.n) {
         case 0:
@@ -763,7 +780,7 @@ function _rejectFinding() {
           break;
         case 4:
           _context12.p = 4;
-          _t5 = _context12.v;
+          _t6 = _context12.v;
           setStatus("Could not undo the tracked change here; reject it from Word's review pane.");
         case 5:
           _context12.n = 6;
@@ -811,7 +828,7 @@ function recordLabel(_x11, _x12, _x13) {
 }
 function _recordLabel() {
   _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(finding, action, reason) {
-    var _t6;
+    var _t7;
     return _regenerator().w(function (_context14) {
       while (1) switch (_context14.p = _context14.n) {
         case 0:
@@ -828,8 +845,8 @@ function _recordLabel() {
           break;
         case 2:
           _context14.p = 2;
-          _t6 = _context14.v;
-          setStatus("Label not recorded: ".concat(String(_t6)));
+          _t7 = _context14.v;
+          setStatus("Label not recorded: ".concat(String(_t7)));
         case 3:
           return _context14.a(2);
       }
