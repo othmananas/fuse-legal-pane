@@ -118,8 +118,10 @@ function _sendChat() {
       input,
       message,
       typing,
+      _liveBubble,
       documentText,
       started,
+      liveBubble,
       result,
       _iterator,
       _step,
@@ -168,10 +170,18 @@ function _sendChat() {
           });
         case 5:
           started = _context4.v;
+          liveBubble = null;
           _context4.n = 6;
-          return pollReview(started.job_id, action);
+          return pollReview(started.job_id, action, function (partial) {
+            typing.remove();
+            if (liveBubble === null) {
+              liveBubble = appendBubble("assistant", "");
+            }
+            liveBubble.textContent = partial;
+          });
         case 6:
           result = _context4.v;
+          (_liveBubble = liveBubble) === null || _liveBubble === void 0 || _liveBubble.remove();
           if (result.reply) {
             appendBubble("assistant", result.reply);
           }
@@ -238,6 +248,7 @@ function pollReview(_x4) {
 function _pollReview() {
   _pollReview = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(jobId) {
     var action,
+      onPartial,
       interval,
       attempt,
       _ref4,
@@ -252,7 +263,8 @@ function _pollReview() {
       while (1) switch (_context5.n) {
         case 0:
           action = _args5.length > 1 && _args5[1] !== undefined ? _args5[1] : "review";
-          interval = action === "chat" ? 1500 : 4000;
+          onPartial = _args5.length > 2 ? _args5[2] : undefined;
+          interval = action === "chat" ? 1000 : 4000;
           attempt = 0;
         case 1:
           if (!(attempt < 300)) {
@@ -294,6 +306,9 @@ function _pollReview() {
           }
           throw new Error((_state$detail = state.detail) !== null && _state$detail !== void 0 ? _state$detail : "review failed");
         case 7:
+          if (state.partial && onPartial) {
+            onPartial(state.partial);
+          }
           label = (_ref4 = (_PHASE_LABELS = PHASE_LABELS[(_state$phase = state.phase) !== null && _state$phase !== void 0 ? _state$phase : ""]) !== null && _PHASE_LABELS !== void 0 ? _PHASE_LABELS : state.phase) !== null && _ref4 !== void 0 ? _ref4 : "working";
           setStatus(action === "review" ? "Review running: ".concat(label, "\u2026") : "The agent is ".concat(label, "\u2026"));
         case 8:
@@ -467,6 +482,16 @@ function planAction(finding) {
       }
     };
   }
+  var anchor = searchAnchor(finding);
+  if (anchor) {
+    return {
+      anchor: anchor,
+      kind: "comment",
+      buildOoxml: function buildOoxml(rangeText) {
+        return commentOnlyOoxml(rangeText, comment);
+      }
+    };
+  }
   return null;
 }
 var APPLY_PAUSE_MS = 150;
@@ -500,7 +525,7 @@ function _applyAllFindings() {
                       }) : null;
                     });
                     searches.forEach(function (collection) {
-                      return collection === null || collection === void 0 ? void 0 : collection.load("items");
+                      return collection === null || collection === void 0 ? void 0 : collection.load("items,text");
                     });
                     _context8.n = 1;
                     return context.sync();
@@ -522,7 +547,7 @@ function _applyAllFindings() {
                   case 3:
                     applied += 1;
                     setStatus("Applying edit ".concat(applied, " of ").concat(total, "\u2026"));
-                    items[0].insertOoxml(plan.buildOoxml(), plan.kind === "insert" ? Word.InsertLocation.after : Word.InsertLocation.replace);
+                    items[0].insertOoxml(plan.buildOoxml(items[0].text), plan.kind === "insert" ? Word.InsertLocation.after : Word.InsertLocation.replace);
                     _context8.p = 4;
                     _context8.n = 5;
                     return context.sync();
@@ -602,7 +627,7 @@ function _applyAllFindings() {
                       var items = (_anchored$pendingInde = anchored[pendingIndex]) === null || _anchored$pendingInde === void 0 ? void 0 : _anchored$pendingInde.items;
                       var range = items && items.length > 0 ? items[0] : context.document.body.paragraphs.getFirst().getRange();
                       range.insertComment("".concat(AI_AUTHOR, " \u2014 ").concat(commentText(finding)));
-                      results[index] = "comment";
+                      results[index] = "user-comment";
                     });
                     _context9.n = 2;
                     return context.sync();
@@ -642,6 +667,9 @@ function insertOnlyOoxml(newText, comment) {
   var date = ooxmlTimestamp();
   return ooxmlPackage("<w:ins w:id=\"102\" w:author=\"".concat(AI_AUTHOR, "\" w:date=\"").concat(date, "\">\n       <w:r><w:t xml:space=\"preserve\">").concat(xmlEscape(" " + newText), "</w:t></w:r>\n     </w:ins>"), comment);
 }
+function commentOnlyOoxml(anchorText, comment) {
+  return ooxmlPackage("<w:r><w:t xml:space=\"preserve\">".concat(xmlEscape(anchorText), "</w:t></w:r>"), comment);
+}
 function ooxmlPackage(paragraphInner, comment) {
   var date = ooxmlTimestamp();
   return "<?xml version=\"1.0\" standalone=\"yes\"?>\n<?mso-application progid=\"Word.Document\"?>\n<pkg:package xmlns:pkg=\"http://schemas.microsoft.com/office/2006/xmlPackage\">\n  <pkg:part pkg:name=\"/_rels/.rels\" pkg:contentType=\"application/vnd.openxmlformats-package.relationships+xml\">\n    <pkg:xmlData>\n      <Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n        <Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>\n      </Relationships>\n    </pkg:xmlData>\n  </pkg:part>\n  <pkg:part pkg:name=\"/word/_rels/document.xml.rels\" pkg:contentType=\"application/vnd.openxmlformats-package.relationships+xml\">\n    <pkg:xmlData>\n      <Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\n        <Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments\" Target=\"comments.xml\"/>\n      </Relationships>\n    </pkg:xmlData>\n  </pkg:part>\n  <pkg:part pkg:name=\"/word/comments.xml\" pkg:contentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml\">\n    <pkg:xmlData>\n      <w:comments xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\n        <w:comment w:id=\"1\" w:author=\"".concat(AI_AUTHOR, "\" w:initials=\"AI\" w:date=\"").concat(date, "\">\n          <w:p><w:r><w:t xml:space=\"preserve\">").concat(xmlEscape(comment), "</w:t></w:r></w:p>\n        </w:comment>\n      </w:comments>\n    </pkg:xmlData>\n  </pkg:part>\n  <pkg:part pkg:name=\"/word/document.xml\" pkg:contentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\">\n    <pkg:xmlData>\n      <w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\n        <w:body>\n          <w:p>\n            <w:commentRangeStart w:id=\"1\"/>\n            ").concat(paragraphInner, "\n            <w:commentRangeEnd w:id=\"1\"/>\n            <w:r><w:commentReference w:id=\"1\"/></w:r>\n          </w:p>\n        </w:body>\n      </w:document>\n    </pkg:xmlData>\n  </pkg:part>\n</pkg:package>");
@@ -649,7 +677,7 @@ function ooxmlPackage(paragraphInner, comment) {
 function markApplied(card, applied) {
   var note = document.createElement("p");
   note.className = "card-note";
-  note.textContent = applied === "redline" ? "Redline suggested in the document, attributed to Fuse Legal AI" : applied === "insert" ? "Insertion suggested in the document, attributed to Fuse Legal AI" : applied === "comment" ? "Comment added in the document (prefixed Fuse Legal AI)" : "Clause not found in the document";
+  note.textContent = applied === "redline" ? "Redline suggested in the document, attributed to Fuse Legal AI" : applied === "insert" ? "Insertion suggested in the document, attributed to Fuse Legal AI" : applied === "comment" ? "Comment added in the document, attributed to Fuse Legal AI" : applied === "user-comment" ? "Comment added in the document (prefixed Fuse Legal AI)" : "Clause not found in the document";
   card.insertBefore(note, card.querySelector("button"));
 }
 function acceptFinding(_x7, _x8) {
@@ -855,6 +883,7 @@ function appendBubble(role, text) {
   bubble.className = role === "user" ? "bubble bubble-user" : "bubble bubble-assistant";
   bubble.textContent = text;
   appendCard(bubble);
+  return bubble;
 }
 function appendCard(element) {
   var log = document.getElementById("chat-log");
