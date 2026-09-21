@@ -64,7 +64,7 @@ function _getDocumentText() {
                 }
               }, _callee);
             }));
-            return function (_x19) {
+            return function (_x14) {
               return _ref3.apply(this, arguments);
             };
           }()));
@@ -124,16 +124,11 @@ function _sendChat() {
       _iterator,
       _step,
       extraction,
-      _iterator2,
-      _step2,
-      finding,
-      card,
+      cards,
+      outcomes,
       _message,
       _args4 = arguments,
-      _t,
-      _t2,
-      _t3,
-      _t4;
+      _t;
     return _regenerator().w(function (_context4) {
       while (1) switch (_context4.p = _context4.n) {
         case 0:
@@ -191,63 +186,42 @@ function _sendChat() {
           } finally {
             _iterator.f();
           }
-          if (inWord && result.findings.length > 0) {
-            setStatus("Adding suggested edits to the document…");
+          cards = result.findings.map(function (finding) {
+            var card = renderFinding(finding);
+            appendCard(card);
+            return card;
+          });
+          if (!(inWord && result.findings.length > 0)) {
+            _context4.n = 8;
+            break;
           }
-          _iterator2 = _createForOfIteratorHelper(result.findings);
-          _context4.p = 7;
-          _iterator2.s();
+          setStatus("Adding suggested edits to the document…");
+          _context4.n = 7;
+          return applyAllFindings(result.findings);
+        case 7:
+          outcomes = _context4.v;
+          outcomes.forEach(function (outcome, index) {
+            return markApplied(cards[index], outcome);
+          });
         case 8:
-          if ((_step2 = _iterator2.n()).done) {
-            _context4.n = 11;
-            break;
-          }
-          finding = _step2.value;
-          card = renderFinding(finding);
-          appendCard(card);
-          if (!inWord) {
-            _context4.n = 10;
-            break;
-          }
-          _t = markApplied;
-          _t2 = card;
-          _context4.n = 9;
-          return applyFindingInline(finding);
-        case 9:
-          _t(_t2, _context4.v);
-        case 10:
-          _context4.n = 8;
-          break;
-        case 11:
-          _context4.n = 13;
-          break;
-        case 12:
-          _context4.p = 12;
-          _t3 = _context4.v;
-          _iterator2.e(_t3);
-        case 13:
-          _context4.p = 13;
-          _iterator2.f();
-          return _context4.f(13);
-        case 14:
           setStatus("Ready.");
-          _context4.n = 16;
+          _context4.n = 10;
           break;
-        case 15:
-          _context4.p = 15;
-          _t4 = _context4.v;
-          _message = _t4 instanceof Error ? _t4.message : String(_t4);
+        case 9:
+          _context4.p = 9;
+          _t = _context4.v;
+          _message = _t instanceof Error ? _t.message : String(_t);
           appendBubble("assistant", "Something went wrong: ".concat(_message, ". Please try again."));
           setStatus("Error — see chat.");
-        case 16:
-          _context4.p = 16;
+        case 10:
+          _context4.p = 10;
           typing.remove();
           busy = false;
-          return _context4.f(16);
-        case 17:
+          return _context4.f(10);
+        case 11:
           return _context4.a(2);
       }
-    }, _callee4, null, [[7, 12, 13, 14], [3, 15, 16, 17]]);
+    }, _callee4, null, [[3, 9, 10, 11]]);
   }));
   return _sendChat.apply(this, arguments);
 }
@@ -458,7 +432,7 @@ function _selectInDocument() {
                 }
               }, _callee6);
             }));
-            return function (_x20) {
+            return function (_x15) {
               return _ref5.apply(this, arguments);
             };
           }());
@@ -469,218 +443,170 @@ function _selectInDocument() {
   }));
   return _selectInDocument.apply(this, arguments);
 }
-function applyFindingInline(_x6) {
-  return _applyFindingInline.apply(this, arguments);
+function planAction(finding) {
+  var suggestion = finding.suggestion;
+  var comment = commentText(finding);
+  if ((suggestion === null || suggestion === void 0 ? void 0 : suggestion.kind) === "replace" && suggestion.old && suggestion.new && suggestion.old.length <= SEARCH_LIMIT && finding.verdict !== "PLAUSIBLE") {
+    var oldText = suggestion.old,
+      newText = suggestion.new;
+    return {
+      anchor: oldText,
+      kind: "redline",
+      buildOoxml: function buildOoxml() {
+        return redlineOoxml(oldText, newText, comment);
+      }
+    };
+  }
+  if ((suggestion === null || suggestion === void 0 ? void 0 : suggestion.kind) === "insert" && suggestion.after && suggestion.new && finding.verdict !== "PLAUSIBLE") {
+    var _newText = suggestion.new;
+    return {
+      anchor: suggestion.after,
+      kind: "insert",
+      buildOoxml: function buildOoxml() {
+        return insertOnlyOoxml(_newText, comment);
+      }
+    };
+  }
+  var anchor = searchAnchor(finding);
+  if (anchor) {
+    return {
+      anchor: anchor,
+      kind: "comment",
+      buildOoxml: function buildOoxml(rangeText) {
+        return commentOnlyOoxml(rangeText, comment);
+      }
+    };
+  }
+  return null;
 }
-function _applyFindingInline() {
-  _applyFindingInline = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(finding) {
-    var suggestion, comment, anchor, applied;
-    return _regenerator().w(function (_context9) {
-      while (1) switch (_context9.n) {
+function applyAllFindings(_x6) {
+  return _applyAllFindings.apply(this, arguments);
+}
+function _applyAllFindings() {
+  _applyAllFindings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(findings) {
+    var plans, results, pending, _t2, _t3;
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.p = _context0.n) {
         case 0:
-          suggestion = finding.suggestion;
-          comment = commentText(finding);
-          if (!((suggestion === null || suggestion === void 0 ? void 0 : suggestion.kind) === "replace" && suggestion.old && suggestion.new && suggestion.old.length <= SEARCH_LIMIT && finding.verdict !== "PLAUSIBLE")) {
-            _context9.n = 2;
-            break;
-          }
-          _context9.n = 1;
-          return tryInsertOoxml(suggestion.old, redlineOoxml(suggestion.old, suggestion.new, comment), "Replace");
-        case 1:
-          if (!_context9.v) {
-            _context9.n = 2;
-            break;
-          }
-          return _context9.a(2, "redline");
-        case 2:
-          if (!((suggestion === null || suggestion === void 0 ? void 0 : suggestion.kind) === "insert" && suggestion.after && suggestion.new && finding.verdict !== "PLAUSIBLE")) {
-            _context9.n = 4;
-            break;
-          }
-          _context9.n = 3;
-          return tryInsertOoxml(suggestion.after, insertOnlyOoxml(suggestion.new, comment), "After");
-        case 3:
-          if (!_context9.v) {
-            _context9.n = 4;
-            break;
-          }
-          return _context9.a(2, "insert");
-        case 4:
-          anchor = searchAnchor(finding);
-          if (!anchor) {
-            _context9.n = 6;
-            break;
-          }
-          _context9.n = 5;
+          plans = findings.map(planAction);
+          results = findings.map(function () {
+            return "not-found";
+          });
+          _context0.p = 1;
+          _context0.n = 2;
           return Word.run(/*#__PURE__*/function () {
             var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(context) {
-              var results, range, _t5;
+              var searches;
               return _regenerator().w(function (_context8) {
-                while (1) switch (_context8.p = _context8.n) {
+                while (1) switch (_context8.n) {
                   case 0:
-                    results = context.document.body.search(anchor.slice(0, SEARCH_LIMIT), {
-                      matchCase: false
+                    searches = plans.map(function (plan) {
+                      return plan ? context.document.body.search(plan.anchor.slice(0, SEARCH_LIMIT), {
+                        matchCase: false
+                      }) : null;
                     });
-                    results.load("items,text");
+                    searches.forEach(function (collection) {
+                      return collection === null || collection === void 0 ? void 0 : collection.load("items,text");
+                    });
                     _context8.n = 1;
                     return context.sync();
                   case 1:
-                    if (!(results.items.length === 0)) {
-                      _context8.n = 2;
-                      break;
-                    }
-                    return _context8.a(2, false);
-                  case 2:
-                    range = results.items[0];
-                    _context8.p = 3;
-                    range.insertOoxml(commentOnlyOoxml(range.text, comment), Word.InsertLocation.replace);
-                    _context8.n = 4;
+                    plans.forEach(function (plan, index) {
+                      var _searches$index;
+                      var items = (_searches$index = searches[index]) === null || _searches$index === void 0 ? void 0 : _searches$index.items;
+                      if (!plan || !items || items.length === 0) {
+                        return;
+                      }
+                      var range = items[0];
+                      range.insertOoxml(plan.buildOoxml(range.text), plan.kind === "insert" ? Word.InsertLocation.after : Word.InsertLocation.replace);
+                      results[index] = plan.kind;
+                    });
+                    _context8.n = 2;
                     return context.sync();
-                  case 4:
-                    return _context8.a(2, true);
-                  case 5:
-                    _context8.p = 5;
-                    _t5 = _context8.v;
-                    return _context8.a(2, false);
+                  case 2:
+                    return _context8.a(2);
                 }
-              }, _callee8, null, [[3, 5]]);
+              }, _callee8);
             }));
-            return function (_x21) {
+            return function (_x16) {
               return _ref6.apply(this, arguments);
             };
-          }()).catch(function () {
-            return false;
+          }());
+        case 2:
+          _context0.n = 4;
+          break;
+        case 3:
+          _context0.p = 3;
+          _t2 = _context0.v;
+        case 4:
+          pending = findings.map(function (finding, index) {
+            return {
+              finding: finding,
+              index: index
+            };
+          }).filter(function (_ref7) {
+            var index = _ref7.index;
+            return results[index] === "not-found";
           });
-        case 5:
-          applied = _context9.v;
-          if (!applied) {
-            _context9.n = 6;
+          if (!(pending.length === 0)) {
+            _context0.n = 5;
             break;
           }
-          return _context9.a(2, "comment");
-        case 6:
-          return _context9.a(2, tryUserComment(finding, comment));
-      }
-    }, _callee9);
-  }));
-  return _applyFindingInline.apply(this, arguments);
-}
-function tryInsertOoxml(_x7, _x8, _x9) {
-  return _tryInsertOoxml.apply(this, arguments);
-}
-function _tryInsertOoxml() {
-  _tryInsertOoxml = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(anchor, ooxml, location) {
-    var _t6;
-    return _regenerator().w(function (_context1) {
-      while (1) switch (_context1.p = _context1.n) {
-        case 0:
-          _context1.p = 0;
-          _context1.n = 1;
+          return _context0.a(2, results);
+        case 5:
+          _context0.p = 5;
+          _context0.n = 6;
           return Word.run(/*#__PURE__*/function () {
-            var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(context) {
-              var results;
-              return _regenerator().w(function (_context0) {
-                while (1) switch (_context0.n) {
+            var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(context) {
+              var anchored;
+              return _regenerator().w(function (_context9) {
+                while (1) switch (_context9.n) {
                   case 0:
-                    results = context.document.body.search(anchor.slice(0, SEARCH_LIMIT), {
-                      matchCase: false
+                    anchored = pending.map(function (_ref9) {
+                      var finding = _ref9.finding;
+                      var anchor = searchAnchor(finding);
+                      return anchor ? context.document.body.search(anchor.slice(0, SEARCH_LIMIT), {
+                        matchCase: false
+                      }) : null;
                     });
-                    results.load("items");
-                    _context0.n = 1;
+                    anchored.forEach(function (collection) {
+                      return collection === null || collection === void 0 ? void 0 : collection.load("items");
+                    });
+                    _context9.n = 1;
                     return context.sync();
                   case 1:
-                    if (!(results.items.length === 0)) {
-                      _context0.n = 2;
-                      break;
-                    }
-                    return _context0.a(2, false);
-                  case 2:
-                    results.items[0].insertOoxml(ooxml, location === "Replace" ? Word.InsertLocation.replace : Word.InsertLocation.after);
-                    _context0.n = 3;
-                    return context.sync();
-                  case 3:
-                    return _context0.a(2, true);
-                }
-              }, _callee0);
-            }));
-            return function (_x22) {
-              return _ref7.apply(this, arguments);
-            };
-          }());
-        case 1:
-          return _context1.a(2, _context1.v);
-        case 2:
-          _context1.p = 2;
-          _t6 = _context1.v;
-          return _context1.a(2, false);
-      }
-    }, _callee1, null, [[0, 2]]);
-  }));
-  return _tryInsertOoxml.apply(this, arguments);
-}
-function tryUserComment(_x0, _x1) {
-  return _tryUserComment.apply(this, arguments);
-}
-function _tryUserComment() {
-  _tryUserComment = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(finding, comment) {
-    var _t7;
-    return _regenerator().w(function (_context11) {
-      while (1) switch (_context11.p = _context11.n) {
-        case 0:
-          _context11.p = 0;
-          _context11.n = 1;
-          return Word.run(/*#__PURE__*/function () {
-            var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(context) {
-              var anchor, range, results;
-              return _regenerator().w(function (_context10) {
-                while (1) switch (_context10.n) {
-                  case 0:
-                    anchor = searchAnchor(finding);
-                    if (!anchor) {
-                      _context10.n = 3;
-                      break;
-                    }
-                    results = context.document.body.search(anchor.slice(0, SEARCH_LIMIT), {
-                      matchCase: false
+                    pending.forEach(function (_ref0, pendingIndex) {
+                      var _anchored$pendingInde;
+                      var finding = _ref0.finding,
+                        index = _ref0.index;
+                      var items = (_anchored$pendingInde = anchored[pendingIndex]) === null || _anchored$pendingInde === void 0 ? void 0 : _anchored$pendingInde.items;
+                      var range = items && items.length > 0 ? items[0] : context.document.body.paragraphs.getFirst().getRange();
+                      range.insertComment("".concat(AI_AUTHOR, " \u2014 ").concat(commentText(finding)));
+                      results[index] = "user-comment";
                     });
-                    results.load("items");
-                    _context10.n = 1;
+                    _context9.n = 2;
                     return context.sync();
-                  case 1:
-                    if (!(results.items.length === 0)) {
-                      _context10.n = 2;
-                      break;
-                    }
-                    return _context10.a(2, "not-found");
                   case 2:
-                    range = results.items[0];
-                    _context10.n = 4;
-                    break;
-                  case 3:
-                    range = context.document.body.paragraphs.getFirst().getRange();
-                  case 4:
-                    range.insertComment("".concat(AI_AUTHOR, " \u2014 ").concat(comment));
-                    _context10.n = 5;
-                    return context.sync();
-                  case 5:
-                    return _context10.a(2, "user-comment");
+                    return _context9.a(2);
                 }
-              }, _callee10);
+              }, _callee9);
             }));
-            return function (_x23) {
+            return function (_x17) {
               return _ref8.apply(this, arguments);
             };
           }());
-        case 1:
-          return _context11.a(2, _context11.v);
-        case 2:
-          _context11.p = 2;
-          _t7 = _context11.v;
-          return _context11.a(2, "not-found");
+        case 6:
+          _context0.n = 8;
+          break;
+        case 7:
+          _context0.p = 7;
+          _t3 = _context0.v;
+        case 8:
+          return _context0.a(2, results);
       }
-    }, _callee11, null, [[0, 2]]);
+    }, _callee0, null, [[5, 7], [1, 3]]);
   }));
-  return _tryUserComment.apply(this, arguments);
+  return _applyAllFindings.apply(this, arguments);
 }
 function localWallClock() {
   var now = new Date();
@@ -713,184 +639,184 @@ function markApplied(card, applied) {
   note.textContent = applied === "redline" ? "Redline suggested in the document, attributed to Fuse Legal AI" : applied === "insert" ? "Insertion suggested in the document, attributed to Fuse Legal AI" : applied === "comment" ? "Comment added in the document, attributed to Fuse Legal AI" : applied === "user-comment" ? "Comment added in the document (attributed to you)" : "Clause not found in the document";
   card.insertBefore(note, card.querySelector("button"));
 }
-function acceptFinding(_x10, _x11) {
+function acceptFinding(_x7, _x8) {
   return _acceptFinding.apply(this, arguments);
 }
 function _acceptFinding() {
-  _acceptFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(finding, card) {
+  _acceptFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(finding, card) {
     var _finding$suggestion4;
-    var inserted, _t8;
-    return _regenerator().w(function (_context13) {
-      while (1) switch (_context13.p = _context13.n) {
+    var inserted, _t4;
+    return _regenerator().w(function (_context10) {
+      while (1) switch (_context10.p = _context10.n) {
         case 0:
           inserted = (_finding$suggestion4 = finding.suggestion) === null || _finding$suggestion4 === void 0 ? void 0 : _finding$suggestion4.new;
           if (!inserted) {
-            _context13.n = 4;
+            _context10.n = 4;
             break;
           }
-          _context13.p = 1;
-          _context13.n = 2;
+          _context10.p = 1;
+          _context10.n = 2;
           return Word.run(/*#__PURE__*/function () {
-            var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(context) {
+            var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(context) {
               var results;
-              return _regenerator().w(function (_context12) {
-                while (1) switch (_context12.n) {
+              return _regenerator().w(function (_context1) {
+                while (1) switch (_context1.n) {
                   case 0:
                     results = context.document.body.search(inserted.slice(0, SEARCH_LIMIT), {
                       matchCase: false
                     });
                     results.load("items");
-                    _context12.n = 1;
+                    _context1.n = 1;
                     return context.sync();
                   case 1:
                     if (!(results.items.length > 0)) {
-                      _context12.n = 2;
+                      _context1.n = 2;
                       break;
                     }
                     results.items[0].getTrackedChanges().acceptAll();
-                    _context12.n = 2;
+                    _context1.n = 2;
                     return context.sync();
                   case 2:
-                    return _context12.a(2);
+                    return _context1.a(2);
                 }
-              }, _callee12);
+              }, _callee1);
             }));
-            return function (_x24) {
-              return _ref9.apply(this, arguments);
+            return function (_x18) {
+              return _ref1.apply(this, arguments);
             };
           }());
         case 2:
-          _context13.n = 4;
+          _context10.n = 4;
           break;
         case 3:
-          _context13.p = 3;
-          _t8 = _context13.v;
+          _context10.p = 3;
+          _t4 = _context10.v;
           setStatus("Could not accept the tracked change here; accept it from Word's review pane.");
         case 4:
-          _context13.n = 5;
+          _context10.n = 5;
           return recordLabel(finding, "accepted");
         case 5:
           card.style.opacity = "0.5";
           setStatus("Accepted ".concat(findingLabel(finding), ". Recorded for the eval loop."));
         case 6:
-          return _context13.a(2);
+          return _context10.a(2);
       }
-    }, _callee13, null, [[1, 3]]);
+    }, _callee10, null, [[1, 3]]);
   }));
   return _acceptFinding.apply(this, arguments);
 }
-function rejectFinding(_x12, _x13) {
+function rejectFinding(_x9, _x0) {
   return _rejectFinding.apply(this, arguments);
 }
 function _rejectFinding() {
-  _rejectFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(finding, card) {
+  _rejectFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(finding, card) {
     var _finding$suggestion5;
-    var reason, inserted, _t9;
-    return _regenerator().w(function (_context15) {
-      while (1) switch (_context15.p = _context15.n) {
+    var reason, inserted, _t5;
+    return _regenerator().w(function (_context12) {
+      while (1) switch (_context12.p = _context12.n) {
         case 0:
           reason = window.prompt("Reason for rejecting (required):");
           if (reason) {
-            _context15.n = 1;
+            _context12.n = 1;
             break;
           }
-          return _context15.a(2);
+          return _context12.a(2);
         case 1:
           inserted = (_finding$suggestion5 = finding.suggestion) === null || _finding$suggestion5 === void 0 ? void 0 : _finding$suggestion5.new;
           if (!inserted) {
-            _context15.n = 5;
+            _context12.n = 5;
             break;
           }
-          _context15.p = 2;
-          _context15.n = 3;
+          _context12.p = 2;
+          _context12.n = 3;
           return Word.run(/*#__PURE__*/function () {
-            var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(context) {
+            var _ref10 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(context) {
               var results;
-              return _regenerator().w(function (_context14) {
-                while (1) switch (_context14.n) {
+              return _regenerator().w(function (_context11) {
+                while (1) switch (_context11.n) {
                   case 0:
                     results = context.document.body.search(inserted.slice(0, SEARCH_LIMIT), {
                       matchCase: false
                     });
                     results.load("items");
-                    _context14.n = 1;
+                    _context11.n = 1;
                     return context.sync();
                   case 1:
                     if (!(results.items.length > 0)) {
-                      _context14.n = 2;
+                      _context11.n = 2;
                       break;
                     }
                     results.items[0].getTrackedChanges().rejectAll();
-                    _context14.n = 2;
+                    _context11.n = 2;
                     return context.sync();
                   case 2:
-                    return _context14.a(2);
+                    return _context11.a(2);
                 }
-              }, _callee14);
+              }, _callee11);
             }));
-            return function (_x25) {
-              return _ref0.apply(this, arguments);
+            return function (_x19) {
+              return _ref10.apply(this, arguments);
             };
           }());
         case 3:
-          _context15.n = 5;
+          _context12.n = 5;
           break;
         case 4:
-          _context15.p = 4;
-          _t9 = _context15.v;
+          _context12.p = 4;
+          _t5 = _context12.v;
           setStatus("Could not undo the tracked change here; reject it from Word's review pane.");
         case 5:
-          _context15.n = 6;
+          _context12.n = 6;
           return recordLabel(finding, "dismissed", reason);
         case 6:
           card.style.opacity = "0.5";
           setStatus("Rejected ".concat(findingLabel(finding), ". The agent sees this next turn."));
         case 7:
-          return _context15.a(2);
+          return _context12.a(2);
       }
-    }, _callee15, null, [[2, 4]]);
+    }, _callee12, null, [[2, 4]]);
   }));
   return _rejectFinding.apply(this, arguments);
 }
-function dismissFinding(_x14, _x15) {
+function dismissFinding(_x1, _x10) {
   return _dismissFinding.apply(this, arguments);
 }
 function _dismissFinding() {
-  _dismissFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(finding, card) {
+  _dismissFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(finding, card) {
     var reason;
-    return _regenerator().w(function (_context16) {
-      while (1) switch (_context16.n) {
+    return _regenerator().w(function (_context13) {
+      while (1) switch (_context13.n) {
         case 0:
           reason = window.prompt("Reason for dismissing (required):");
           if (reason) {
-            _context16.n = 1;
+            _context13.n = 1;
             break;
           }
-          return _context16.a(2);
+          return _context13.a(2);
         case 1:
-          _context16.n = 2;
+          _context13.n = 2;
           return recordLabel(finding, "dismissed", reason);
         case 2:
           card.style.opacity = "0.5";
           setStatus("Dismissed ".concat(findingLabel(finding), ". The agent sees this next turn."));
         case 3:
-          return _context16.a(2);
+          return _context13.a(2);
       }
-    }, _callee16);
+    }, _callee13);
   }));
   return _dismissFinding.apply(this, arguments);
 }
-function recordLabel(_x16, _x17, _x18) {
+function recordLabel(_x11, _x12, _x13) {
   return _recordLabel.apply(this, arguments);
 }
 function _recordLabel() {
-  _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(finding, action, reason) {
-    var _t0;
-    return _regenerator().w(function (_context17) {
-      while (1) switch (_context17.p = _context17.n) {
+  _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(finding, action, reason) {
+    var _t6;
+    return _regenerator().w(function (_context14) {
+      while (1) switch (_context14.p = _context14.n) {
         case 0:
-          _context17.p = 0;
-          _context17.n = 1;
+          _context14.p = 0;
+          _context14.n = 1;
           return post("/labels", {
             session_id: sessionId,
             criterion: findingLabel(finding),
@@ -898,16 +824,16 @@ function _recordLabel() {
             reason: reason !== null && reason !== void 0 ? reason : null
           });
         case 1:
-          _context17.n = 3;
+          _context14.n = 3;
           break;
         case 2:
-          _context17.p = 2;
-          _t0 = _context17.v;
-          setStatus("Label not recorded: ".concat(String(_t0)));
+          _context14.p = 2;
+          _t6 = _context14.v;
+          setStatus("Label not recorded: ".concat(String(_t6)));
         case 3:
-          return _context17.a(2);
+          return _context14.a(2);
       }
-    }, _callee17, null, [[0, 2]]);
+    }, _callee14, null, [[0, 2]]);
   }));
   return _recordLabel.apply(this, arguments);
 }
