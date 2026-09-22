@@ -1,7 +1,3 @@
-function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
-function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
-function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i.return) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -58,7 +54,7 @@ function _getDocumentText() {
           return _context2.a(2, document.getElementById("doc-input").value);
         case 1:
           return _context2.a(2, Word.run(/*#__PURE__*/function () {
-            var _ref4 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee(context) {
+            var _ref5 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee(context) {
               var body;
               return _regenerator().w(function (_context) {
                 while (1) switch (_context.n) {
@@ -73,7 +69,7 @@ function _getDocumentText() {
               }, _callee);
             }));
             return function (_x21) {
-              return _ref4.apply(this, arguments);
+              return _ref5.apply(this, arguments);
             };
           }()));
       }
@@ -196,7 +192,7 @@ function _sendChat() {
           if (result.extractions.length > 0) {
             appendCard(renderContractProfile(result.extractions));
           }
-          findings = _toConsumableArray(result.findings).sort(byClauseOrder);
+          findings = orderByDocument(result.findings, documentText);
           cards = findings.map(function (finding) {
             var card = renderFinding(finding);
             appendCard(card);
@@ -253,7 +249,7 @@ function _pollReview() {
       interval,
       consecutiveFailures,
       attempt,
-      _ref5,
+      _ref6,
       _PHASE_LABELS,
       _state$phase,
       state,
@@ -331,7 +327,7 @@ function _pollReview() {
           if (state.partial && onPartial) {
             onPartial(state.partial);
           }
-          label = (_ref5 = (_PHASE_LABELS = PHASE_LABELS[(_state$phase = state.phase) !== null && _state$phase !== void 0 ? _state$phase : ""]) !== null && _PHASE_LABELS !== void 0 ? _PHASE_LABELS : state.phase) !== null && _ref5 !== void 0 ? _ref5 : "working";
+          label = (_ref6 = (_PHASE_LABELS = PHASE_LABELS[(_state$phase = state.phase) !== null && _state$phase !== void 0 ? _state$phase : ""]) !== null && _PHASE_LABELS !== void 0 ? _PHASE_LABELS : state.phase) !== null && _ref6 !== void 0 ? _ref6 : "working";
           setStatus(action === "review" ? "Review running: ".concat(label, "\u2026") : "The agent is ".concat(label, "\u2026"));
         case 12:
           attempt++;
@@ -378,8 +374,41 @@ function byClauseOrder(a, b) {
   }
   return 0;
 }
+function documentPosition(doc, finding) {
+  var _finding$suggestion, _finding$suggestion2;
+  var candidates = [(_finding$suggestion = finding.suggestion) === null || _finding$suggestion === void 0 ? void 0 : _finding$suggestion.old, finding.quote, (_finding$suggestion2 = finding.suggestion) === null || _finding$suggestion2 === void 0 ? void 0 : _finding$suggestion2.after, finding.clause_anchor];
+  for (var _i = 0, _candidates = candidates; _i < _candidates.length; _i++) {
+    var candidate = _candidates[_i];
+    if (!candidate) {
+      continue;
+    }
+    var target = normalizeWithMap(candidate).normalized.slice(0, 80);
+    if (!target) {
+      continue;
+    }
+    var at = doc.normalized.indexOf(target);
+    if (at >= 0) {
+      return at;
+    }
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
+function orderByDocument(findings, documentText) {
+  var doc = normalizeWithMap(documentText);
+  return findings.map(function (finding) {
+    return {
+      finding: finding,
+      position: documentPosition(doc, finding)
+    };
+  }).sort(function (a, b) {
+    return a.position - b.position || byClauseOrder(a.finding, b.finding);
+  }).map(function (_ref) {
+    var finding = _ref.finding;
+    return finding;
+  });
+}
 function renderFinding(finding) {
-  var _finding$suggestion;
+  var _finding$suggestion3;
   var card = document.createElement("div");
   var severityClass = finding.severity.toLowerCase();
   card.className = "card card-finding card-".concat(severityClass);
@@ -391,7 +420,7 @@ function renderFinding(finding) {
   if (finding.impact) {
     html += "<p class=\"card-body\">".concat(finding.impact, "</p>");
   }
-  if (((_finding$suggestion = finding.suggestion) === null || _finding$suggestion === void 0 ? void 0 : _finding$suggestion.kind) === "instruct" && finding.suggestion.instruction) {
+  if (((_finding$suggestion3 = finding.suggestion) === null || _finding$suggestion3 === void 0 ? void 0 : _finding$suggestion3.kind) === "instruct" && finding.suggestion.instruction) {
     html += "<p class=\"card-body\"><b>".concat(finding.suggestion.instruction, "</b></p>");
   } else if (!hasInlineSuggestion(finding) && finding.quote) {
     html += "<p class=\"card-body\"><span class=\"card-quote\">\"".concat(finding.quote, "\"</span></p>");
@@ -401,8 +430,9 @@ function renderFinding(finding) {
   }
   body.innerHTML = html;
   card.appendChild(body);
+  var actions = actionRow(card);
   if (inWord) {
-    card.appendChild(button("Go to clause", function () {
+    actions.appendChild(button("Go to clause", function () {
       return goToFinding(finding);
     }));
   }
@@ -420,7 +450,7 @@ function renderFinding(finding) {
           handler = _step$value[1];
         var vote = button(label, handler);
         vote.classList.add("vote");
-        card.appendChild(vote);
+        actions.appendChild(vote);
       }
     } catch (err) {
       _iterator.e(err);
@@ -432,13 +462,48 @@ function renderFinding(finding) {
       return dismissFinding(finding, card);
     });
     dismiss.classList.add("vote");
-    card.appendChild(dismiss);
+    actions.appendChild(dismiss);
   }
   return card;
 }
+function actionRow(card) {
+  var row = document.createElement("div");
+  row.className = "card-actions";
+  card.appendChild(row);
+  return row;
+}
+function askReason(card, placeholder, onSubmit) {
+  if (card.querySelector(".reason-form")) {
+    return;
+  }
+  var form = document.createElement("div");
+  form.className = "reason-form";
+  var input = document.createElement("textarea");
+  input.className = "reason-input";
+  input.placeholder = placeholder;
+  input.rows = 2;
+  var actions = document.createElement("div");
+  actions.className = "card-actions";
+  var submit = button("Send", function () {
+    var reason = input.value.trim();
+    if (!reason) {
+      input.focus();
+      return;
+    }
+    form.remove();
+    void onSubmit(reason);
+  });
+  var cancel = button("Cancel", function () {
+    return form.remove();
+  });
+  actions.append(submit, cancel);
+  form.append(input, actions);
+  card.appendChild(form);
+  input.focus();
+}
 function searchAnchor(finding) {
-  var _ref, _ref2, _ref3, _finding$suggestion$o, _finding$suggestion2, _finding$suggestion3;
-  return (_ref = (_ref2 = (_ref3 = (_finding$suggestion$o = (_finding$suggestion2 = finding.suggestion) === null || _finding$suggestion2 === void 0 ? void 0 : _finding$suggestion2.old) !== null && _finding$suggestion$o !== void 0 ? _finding$suggestion$o : finding.quote) !== null && _ref3 !== void 0 ? _ref3 : (_finding$suggestion3 = finding.suggestion) === null || _finding$suggestion3 === void 0 ? void 0 : _finding$suggestion3.after) !== null && _ref2 !== void 0 ? _ref2 : finding.clause_anchor) !== null && _ref !== void 0 ? _ref : null;
+  var _ref2, _ref3, _ref4, _finding$suggestion$o, _finding$suggestion4, _finding$suggestion5;
+  return (_ref2 = (_ref3 = (_ref4 = (_finding$suggestion$o = (_finding$suggestion4 = finding.suggestion) === null || _finding$suggestion4 === void 0 ? void 0 : _finding$suggestion4.old) !== null && _finding$suggestion$o !== void 0 ? _finding$suggestion$o : finding.quote) !== null && _ref4 !== void 0 ? _ref4 : (_finding$suggestion5 = finding.suggestion) === null || _finding$suggestion5 === void 0 ? void 0 : _finding$suggestion5.after) !== null && _ref3 !== void 0 ? _ref3 : finding.clause_anchor) !== null && _ref2 !== void 0 ? _ref2 : null;
 }
 var CHAR_EQUIVALENTS = {
   "\u2018": "'",
@@ -501,8 +566,9 @@ function renderContractProfile(extractions) {
     return text;
   });
   card.innerHTML = "<p class=\"card-title\">Contract profile</p>".concat(rows).concat(quote ? "<span class=\"card-quote\">\"".concat(quote, "\"</span>") : "");
+  var actions = actionRow(card);
   if (inWord && quote) {
-    card.appendChild(button("Highlight", function () {
+    actions.appendChild(button("Highlight", function () {
       return selectInDocument(quote);
     }));
   }
@@ -517,7 +583,7 @@ function renderContractProfile(extractions) {
         return recordProfileVerdict(card, extractions, action);
       });
       vote.classList.add("vote");
-      card.appendChild(vote);
+      actions.appendChild(vote);
     };
     for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
       _loop();
@@ -534,20 +600,20 @@ function recordProfileVerdict(_x5, _x6, _x7) {
 }
 function _recordProfileVerdict() {
   _recordProfileVerdict = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(card, extractions, action) {
-    var reason, _t3;
+    var reason,
+      _args6 = arguments,
+      _t3;
     return _regenerator().w(function (_context6) {
       while (1) switch (_context6.p = _context6.n) {
         case 0:
-          reason = null;
-          if (!(action === "dismissed")) {
+          reason = _args6.length > 3 && _args6[3] !== undefined ? _args6[3] : null;
+          if (!(action === "dismissed" && reason === null)) {
             _context6.n = 1;
             break;
           }
-          reason = window.prompt("What did the AI get wrong here?");
-          if (reason) {
-            _context6.n = 1;
-            break;
-          }
+          askReason(card, "What did the AI get wrong here?", function (text) {
+            return recordProfileVerdict(card, extractions, action, text);
+          });
           return _context6.a(2);
         case 1:
           _context6.p = 1;
@@ -602,8 +668,8 @@ function _selectFirstMatch() {
           _context8.p = 0;
           _context8.n = 1;
           return Word.run(/*#__PURE__*/function () {
-            var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(context) {
-              var body, doc, attempts, _iterator3, _step3, _resolveAnchor, candidate, anchor, _i2, _arr, length, _attempt, _i, _attempts, attempt, results;
+            var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(context) {
+              var body, doc, attempts, _iterator3, _step3, _resolveAnchor, candidate, anchor, _i3, _arr, length, _attempt, _i2, _attempts, attempt, results;
               return _regenerator().w(function (_context7) {
                 while (1) switch (_context7.n) {
                   case 0:
@@ -619,8 +685,8 @@ function _selectFirstMatch() {
                       for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
                         candidate = _step3.value;
                         anchor = (_resolveAnchor = resolveAnchor(doc, candidate)) !== null && _resolveAnchor !== void 0 ? _resolveAnchor : candidate;
-                        for (_i2 = 0, _arr = [SEARCH_LIMIT, 80, 40]; _i2 < _arr.length; _i2++) {
-                          length = _arr[_i2];
+                        for (_i3 = 0, _arr = [SEARCH_LIMIT, 80, 40]; _i3 < _arr.length; _i3++) {
+                          length = _arr[_i3];
                           _attempt = anchor.slice(0, length).trim();
                           if (_attempt && !attempts.includes(_attempt)) {
                             attempts.push(_attempt);
@@ -632,13 +698,13 @@ function _selectFirstMatch() {
                     } finally {
                       _iterator3.f();
                     }
-                    _i = 0, _attempts = attempts;
+                    _i2 = 0, _attempts = attempts;
                   case 2:
-                    if (!(_i < _attempts.length)) {
+                    if (!(_i2 < _attempts.length)) {
                       _context7.n = 6;
                       break;
                     }
-                    attempt = _attempts[_i];
+                    attempt = _attempts[_i2];
                     results = body.search(attempt, {
                       matchCase: false
                     });
@@ -656,7 +722,7 @@ function _selectFirstMatch() {
                   case 4:
                     return _context7.a(2, true);
                   case 5:
-                    _i++;
+                    _i2++;
                     _context7.n = 2;
                     break;
                   case 6:
@@ -665,7 +731,7 @@ function _selectFirstMatch() {
               }, _callee7);
             }));
             return function (_x22) {
-              return _ref6.apply(this, arguments);
+              return _ref7.apply(this, arguments);
             };
           }());
         case 1:
@@ -684,12 +750,12 @@ function goToFinding(_x9) {
 }
 function _goToFinding() {
   _goToFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(finding) {
-    var _finding$suggestion4;
+    var _finding$suggestion6;
     var candidates, found;
     return _regenerator().w(function (_context9) {
       while (1) switch (_context9.n) {
         case 0:
-          candidates = [(_finding$suggestion4 = finding.suggestion) === null || _finding$suggestion4 === void 0 ? void 0 : _finding$suggestion4.new, searchAnchor(finding)].filter(function (candidate) {
+          candidates = [(_finding$suggestion6 = finding.suggestion) === null || _finding$suggestion6 === void 0 ? void 0 : _finding$suggestion6.new, searchAnchor(finding)].filter(function (candidate) {
             return Boolean(candidate);
           });
           _context9.n = 1;
@@ -767,7 +833,7 @@ function _applyAllFindings() {
           _context10.p = 1;
           _context10.n = 2;
           return Word.run(/*#__PURE__*/function () {
-            var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(context) {
+            var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(context) {
               var body, doc, searches, applied, index, _searches$index, plan, items, _t5;
               return _regenerator().w(function (_context1) {
                 while (1) switch (_context1.p = _context1.n) {
@@ -837,7 +903,7 @@ function _applyAllFindings() {
               }, _callee1, null, [[5, 7]]);
             }));
             return function (_x23) {
-              return _ref7.apply(this, arguments);
+              return _ref8.apply(this, arguments);
             };
           }());
         case 2:
@@ -892,19 +958,19 @@ function revertTrackedChanges(_x10) {
 }
 function _revertTrackedChanges() {
   _revertTrackedChanges = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(finding) {
-    var _finding$suggestion5, _finding$suggestion6;
+    var _finding$suggestion7, _finding$suggestion8;
     var targets, _t8;
     return _regenerator().w(function (_context12) {
       while (1) switch (_context12.p = _context12.n) {
         case 0:
-          targets = [(_finding$suggestion5 = finding.suggestion) === null || _finding$suggestion5 === void 0 ? void 0 : _finding$suggestion5.new, (_finding$suggestion6 = finding.suggestion) === null || _finding$suggestion6 === void 0 ? void 0 : _finding$suggestion6.old].filter(function (target) {
+          targets = [(_finding$suggestion7 = finding.suggestion) === null || _finding$suggestion7 === void 0 ? void 0 : _finding$suggestion7.new, (_finding$suggestion8 = finding.suggestion) === null || _finding$suggestion8 === void 0 ? void 0 : _finding$suggestion8.old].filter(function (target) {
             return Boolean(target);
           });
           _context12.p = 1;
           _context12.n = 2;
           return Word.run(/*#__PURE__*/function () {
-            var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(context) {
-              var body, doc, reverted, _iterator4, _step4, _resolveAnchor3, target, anchor, _i3, _arr2, length, results, _t7;
+            var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(context) {
+              var body, doc, reverted, _iterator4, _step4, _resolveAnchor3, target, anchor, _i4, _arr2, length, results, _t7;
               return _regenerator().w(function (_context11) {
                 while (1) switch (_context11.p = _context11.n) {
                   case 0:
@@ -925,13 +991,13 @@ function _revertTrackedChanges() {
                     }
                     target = _step4.value;
                     anchor = (_resolveAnchor3 = resolveAnchor(doc, target)) !== null && _resolveAnchor3 !== void 0 ? _resolveAnchor3 : target;
-                    _i3 = 0, _arr2 = [SEARCH_LIMIT, 80];
+                    _i4 = 0, _arr2 = [SEARCH_LIMIT, 80];
                   case 4:
-                    if (!(_i3 < _arr2.length)) {
+                    if (!(_i4 < _arr2.length)) {
                       _context11.n = 8;
                       break;
                     }
-                    length = _arr2[_i3];
+                    length = _arr2[_i4];
                     results = body.search(anchor.slice(0, length), {
                       matchCase: false
                     });
@@ -950,7 +1016,7 @@ function _revertTrackedChanges() {
                     reverted = true;
                     return _context11.a(3, 8);
                   case 7:
-                    _i3++;
+                    _i4++;
                     _context11.n = 4;
                     break;
                   case 8:
@@ -973,7 +1039,7 @@ function _revertTrackedChanges() {
               }, _callee11, null, [[2, 10, 11, 12]]);
             }));
             return function (_x24) {
-              return _ref8.apply(this, arguments);
+              return _ref9.apply(this, arguments);
             };
           }());
         case 2:
@@ -1011,34 +1077,41 @@ function rejectSuggestion(_x13, _x14) {
   return _rejectSuggestion.apply(this, arguments);
 }
 function _rejectSuggestion() {
-  _rejectSuggestion = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(finding, card) {
-    var reason, reverted;
-    return _regenerator().w(function (_context14) {
-      while (1) switch (_context14.n) {
+  _rejectSuggestion = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(finding, card) {
+    return _regenerator().w(function (_context15) {
+      while (1) switch (_context15.n) {
         case 0:
-          reason = window.prompt("Why is this suggestion wrong? (required — this trains the AI)");
-          if (reason) {
-            _context14.n = 1;
-            break;
-          }
-          return _context14.a(2);
+          askReason(card, "Why is this suggestion wrong? This trains the AI.", /*#__PURE__*/function () {
+            var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(reason) {
+              var reverted;
+              return _regenerator().w(function (_context14) {
+                while (1) switch (_context14.n) {
+                  case 0:
+                    _context14.n = 1;
+                    return revertTrackedChanges(finding);
+                  case 1:
+                    reverted = _context14.v;
+                    if (!reverted && hasInlineSuggestion(finding)) {
+                      setStatus("Could not undo the tracked change automatically; reject it from Word's review pane.");
+                    }
+                    _context14.n = 2;
+                    return recordLabel(finding, "dismissed", "suggestion", reason);
+                  case 2:
+                    markSectionDone(card, reverted ? "Rejected — the edit was removed from the document" : "Rejected");
+                    setStatus("Rejected the suggestion for ".concat(findingLabel(finding), ". The agent sees this next turn."));
+                  case 3:
+                    return _context14.a(2);
+                }
+              }, _callee14);
+            }));
+            return function (_x25) {
+              return _ref0.apply(this, arguments);
+            };
+          }());
         case 1:
-          _context14.n = 2;
-          return revertTrackedChanges(finding);
-        case 2:
-          reverted = _context14.v;
-          if (!reverted && hasInlineSuggestion(finding)) {
-            setStatus("Could not undo the tracked change automatically; reject it from Word's review pane.");
-          }
-          _context14.n = 3;
-          return recordLabel(finding, "dismissed", "suggestion", reason);
-        case 3:
-          markSectionDone(card, reverted ? "Rejected — the edit was removed from the document" : "Rejected");
-          setStatus("Rejected the suggestion for ".concat(findingLabel(finding), ". The agent sees this next turn."));
-        case 4:
-          return _context14.a(2);
+          return _context15.a(2);
       }
-    }, _callee14);
+    }, _callee15);
   }));
   return _rejectSuggestion.apply(this, arguments);
 }
@@ -1046,28 +1119,34 @@ function dismissFinding(_x15, _x16) {
   return _dismissFinding.apply(this, arguments);
 }
 function _dismissFinding() {
-  _dismissFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(finding, card) {
-    var reason;
-    return _regenerator().w(function (_context15) {
-      while (1) switch (_context15.n) {
+  _dismissFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(finding, card) {
+    return _regenerator().w(function (_context17) {
+      while (1) switch (_context17.n) {
         case 0:
-          reason = window.prompt("Reason for dismissing (required):");
-          if (reason) {
-            _context15.n = 1;
-            break;
-          }
-          return _context15.a(2);
+          askReason(card, "Why should this be dismissed? This trains the AI.", /*#__PURE__*/function () {
+            var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(reason) {
+              return _regenerator().w(function (_context16) {
+                while (1) switch (_context16.n) {
+                  case 0:
+                    _context16.n = 1;
+                    return recordLabel(finding, "dismissed", "finding", reason);
+                  case 1:
+                    markSectionDone(card, "Dismissed");
+                    card.style.opacity = "0.5";
+                    setStatus("Dismissed ".concat(findingLabel(finding), ". The agent sees this next turn."));
+                  case 2:
+                    return _context16.a(2);
+                }
+              }, _callee16);
+            }));
+            return function (_x26) {
+              return _ref1.apply(this, arguments);
+            };
+          }());
         case 1:
-          _context15.n = 2;
-          return recordLabel(finding, "dismissed", "finding", reason);
-        case 2:
-          markSectionDone(card, "Dismissed");
-          card.style.opacity = "0.5";
-          setStatus("Dismissed ".concat(findingLabel(finding), ". The agent sees this next turn."));
-        case 3:
-          return _context15.a(2);
+          return _context17.a(2);
       }
-    }, _callee15);
+    }, _callee17);
   }));
   return _dismissFinding.apply(this, arguments);
 }
@@ -1075,13 +1154,13 @@ function recordLabel(_x17, _x18, _x19, _x20) {
   return _recordLabel.apply(this, arguments);
 }
 function _recordLabel() {
-  _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(finding, action, target, reason) {
+  _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(finding, action, target, reason) {
     var _t9;
-    return _regenerator().w(function (_context16) {
-      while (1) switch (_context16.p = _context16.n) {
+    return _regenerator().w(function (_context18) {
+      while (1) switch (_context18.p = _context18.n) {
         case 0:
-          _context16.p = 0;
-          _context16.n = 1;
+          _context18.p = 0;
+          _context18.n = 1;
           return post("/labels", {
             session_id: sessionId,
             criterion: findingLabel(finding),
@@ -1090,16 +1169,16 @@ function _recordLabel() {
             reason: reason !== null && reason !== void 0 ? reason : null
           });
         case 1:
-          _context16.n = 3;
+          _context18.n = 3;
           break;
         case 2:
-          _context16.p = 2;
-          _t9 = _context16.v;
+          _context18.p = 2;
+          _t9 = _context18.v;
           setStatus("Label not recorded: ".concat(String(_t9)));
         case 3:
-          return _context16.a(2);
+          return _context18.a(2);
       }
-    }, _callee16, null, [[0, 2]]);
+    }, _callee18, null, [[0, 2]]);
   }));
   return _recordLabel.apply(this, arguments);
 }
