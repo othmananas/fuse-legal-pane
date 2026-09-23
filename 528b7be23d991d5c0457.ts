@@ -1,4 +1,5 @@
 function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _regeneratorValues(e) { if (null != e) { var t = e["function" == typeof Symbol && Symbol.iterator || "@@iterator"], r = 0; if (t) return t.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) return { next: function next() { return e && r >= e.length && (e = void 0), { value: e && e[r++], done: !e }; } }; } throw new TypeError(_typeof(e) + " is not iterable"); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -23,6 +24,21 @@ var SEARCH_LIMIT = 200;
 var sessionId = crypto.randomUUID();
 var inWord = false;
 var busy = false;
+var SESSION_KEY_PREFIX = "fuse-legal-session:";
+function adoptDocumentSession() {
+  var _Office$context$docum;
+  var url = (_Office$context$docum = Office.context.document) === null || _Office$context$docum === void 0 ? void 0 : _Office$context$docum.url;
+  if (!url) {
+    return;
+  }
+  var key = "".concat(SESSION_KEY_PREFIX).concat(url);
+  var stored = localStorage.getItem(key);
+  if (stored) {
+    sessionId = stored;
+  } else {
+    localStorage.setItem(key, sessionId);
+  }
+}
 var USER_STORAGE_KEY = "fuse-legal-user";
 var currentUser = null;
 function adoptUser(user) {
@@ -133,7 +149,7 @@ function _probeSignedInUser() {
                 }
               }, _callee2);
             }));
-            return function (_x21) {
+            return function (_x23) {
               return _ref6.apply(this, arguments);
             };
           }());
@@ -184,6 +200,9 @@ Office.onReady(function (info) {
   if (!inWord) {
     document.getElementById("browser-doc").style.display = "block";
   }
+  if (inWord) {
+    adoptDocumentSession();
+  }
   document.getElementById("chat-send").onclick = function () {
     return sendChat();
   };
@@ -193,11 +212,16 @@ Office.onReady(function (info) {
   document.getElementById("chip-summarize").onclick = function () {
     return sendChat("Summarize the key terms of this contract.");
   };
+  document.getElementById("chip-history").onclick = function () {
+    return void showHistory();
+  };
   document.getElementById("chat-input").onkeydown = function (event) {
     if (event.key === "Enter") sendChat();
   };
   appendBubble("assistant", "Hi, I'm Fuse's legal agent. Ask me anything about this contract, or start with a review.");
-  void resolveUser();
+  void resolveUser().then(function () {
+    return restoreCurrentSession();
+  });
 });
 function setStatus(text) {
   document.getElementById("status").textContent = text;
@@ -231,7 +255,7 @@ function _getDocumentText() {
                 }
               }, _callee4);
             }));
-            return function (_x22) {
+            return function (_x24) {
               return _ref7.apply(this, arguments);
             };
           }()));
@@ -278,11 +302,286 @@ function _post() {
   }));
   return _post.apply(this, arguments);
 }
-function sendChat(_x3) {
+function get(_x3) {
+  return _get.apply(this, arguments);
+}
+function _get() {
+  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(path) {
+    var response;
+    return _regenerator().w(function (_context7) {
+      while (1) switch (_context7.n) {
+        case 0:
+          _context7.n = 1;
+          return fetch("".concat(API_BASE).concat(path), {
+            headers: {
+              "X-Tunnel-Skip-AntiPhishing-Page": "true"
+            }
+          });
+        case 1:
+          response = _context7.v;
+          if (!(response.status === 404)) {
+            _context7.n = 2;
+            break;
+          }
+          return _context7.a(2, null);
+        case 2:
+          if (response.ok) {
+            _context7.n = 3;
+            break;
+          }
+          throw new Error("".concat(path, " failed (").concat(response.status, ")"));
+        case 3:
+          return _context7.a(2, response.json());
+      }
+    }, _callee7);
+  }));
+  return _get.apply(this, arguments);
+}
+function labelNote(action) {
+  return action === "accepted" || action === "accepted_with_edits" ? "Accepted earlier — the tracked change stays in the document" : "Dismissed earlier";
+}
+function renderSessionState(state, interactive) {
+  var lastLabelByCriterion = new Map();
+  var _iterator = _createForOfIteratorHelper(state.labels),
+    _step;
+  try {
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var label = _step.value;
+      if (label.criterion) {
+        lastLabelByCriterion.set(label.criterion, label);
+      }
+    }
+  } catch (err) {
+    _iterator.e(err);
+  } finally {
+    _iterator.f();
+  }
+  var _iterator2 = _createForOfIteratorHelper(state.transcript),
+    _step2;
+  try {
+    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+      var _entry$message;
+      var entry = _step2.value;
+      appendBubble("user", (_entry$message = entry.message) !== null && _entry$message !== void 0 ? _entry$message : "Review this document against the Fuse NDA style guide.");
+      if (entry.reply) {
+        appendBubble("assistant", entry.reply);
+      }
+      if (entry.extractions.length > 0) {
+        appendCard(renderContractProfile(entry.extractions, interactive));
+      }
+      var _iterator3 = _createForOfIteratorHelper(entry.findings),
+        _step3;
+      try {
+        for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+          var finding = _step3.value;
+          var card = renderFinding(finding, interactive);
+          appendCard(card);
+          var _label = lastLabelByCriterion.get(findingLabel(finding));
+          if (_label) {
+            markSectionDone(card, labelNote(_label.action));
+          }
+        }
+      } catch (err) {
+        _iterator3.e(err);
+      } finally {
+        _iterator3.f();
+      }
+    }
+  } catch (err) {
+    _iterator2.e(err);
+  } finally {
+    _iterator2.f();
+  }
+}
+function restoreCurrentSession() {
+  return _restoreCurrentSession.apply(this, arguments);
+}
+function _restoreCurrentSession() {
+  _restoreCurrentSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8() {
+    var state, _t3;
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.p = _context8.n) {
+        case 0:
+          _context8.p = 0;
+          _context8.n = 1;
+          return get("/sessions/".concat(sessionId, "/state"));
+        case 1:
+          state = _context8.v;
+          if (!(!state || state.transcript.length === 0)) {
+            _context8.n = 2;
+            break;
+          }
+          return _context8.a(2);
+        case 2:
+          appendBubble("assistant", "Here's where we left off on this document:");
+          renderSessionState(state, true);
+          setStatus("Previous session restored.");
+          _context8.n = 4;
+          break;
+        case 3:
+          _context8.p = 3;
+          _t3 = _context8.v;
+        case 4:
+          return _context8.a(2);
+      }
+    }, _callee8, null, [[0, 3]]);
+  }));
+  return _restoreCurrentSession.apply(this, arguments);
+}
+function showHistory() {
+  return _showHistory.apply(this, arguments);
+}
+function _showHistory() {
+  _showHistory = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
+    var _currentUser;
+    var sessions, card, _iterator6, _step6, _loop2, _t4, _t5;
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.p = _context0.n) {
+        case 0:
+          if ((_currentUser = currentUser) !== null && _currentUser !== void 0 && _currentUser.email) {
+            _context0.n = 1;
+            break;
+          }
+          setStatus("Sign in first so I know whose history to show.");
+          return _context0.a(2);
+        case 1:
+          sessions = null;
+          _context0.p = 2;
+          _context0.n = 3;
+          return get("/sessions?email=".concat(encodeURIComponent(currentUser.email)));
+        case 3:
+          sessions = _context0.v;
+          _context0.n = 5;
+          break;
+        case 4:
+          _context0.p = 4;
+          _t4 = _context0.v;
+          setStatus("Couldn't load your history; is the server reachable?");
+          return _context0.a(2);
+        case 5:
+          card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = "<p class=\"card-title\">Your sessions</p>";
+          if (!sessions || sessions.length === 0) {
+            card.innerHTML += "<p class=\"card-note\">No previous sessions found for ".concat(currentUser.email, ".</p>");
+          }
+          _iterator6 = _createForOfIteratorHelper(sessions !== null && sessions !== void 0 ? sessions : []);
+          _context0.p = 6;
+          _loop2 = /*#__PURE__*/_regenerator().m(function _loop2() {
+            var session, row, snippet, actions;
+            return _regenerator().w(function (_context9) {
+              while (1) switch (_context9.n) {
+                case 0:
+                  session = _step6.value;
+                  row = document.createElement("div");
+                  row.className = "card-section";
+                  snippet = session.document_snippet ? "\u201C".concat(session.document_snippet.slice(0, 70), "\u2026\u201D") : "(no document captured)";
+                  row.innerHTML = "<p class=\"card-body\"><b>".concat(session.last_ts.slice(0, 16).replace("T", " "), "</b> \u2014 ").concat(session.turns, " turn(s), ").concat(session.labels, " decision(s)</p><p class=\"card-note\">").concat(snippet, "</p>");
+                  actions = actionRow(row);
+                  actions.appendChild(button("View", function () {
+                    return void viewPastSession(session);
+                  }));
+                  card.appendChild(row);
+                case 1:
+                  return _context9.a(2);
+              }
+            }, _loop2);
+          });
+          _iterator6.s();
+        case 7:
+          if ((_step6 = _iterator6.n()).done) {
+            _context0.n = 9;
+            break;
+          }
+          return _context0.d(_regeneratorValues(_loop2()), 8);
+        case 8:
+          _context0.n = 7;
+          break;
+        case 9:
+          _context0.n = 11;
+          break;
+        case 10:
+          _context0.p = 10;
+          _t5 = _context0.v;
+          _iterator6.e(_t5);
+        case 11:
+          _context0.p = 11;
+          _iterator6.f();
+          return _context0.f(11);
+        case 12:
+          appendCard(card);
+        case 13:
+          return _context0.a(2);
+      }
+    }, _callee9, null, [[6, 10, 11, 12], [2, 4]]);
+  }));
+  return _showHistory.apply(this, arguments);
+}
+function viewPastSession(_x4) {
+  return _viewPastSession.apply(this, arguments);
+}
+function _viewPastSession() {
+  _viewPastSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(session) {
+    var state, isCurrent, log, banner, actions;
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.n) {
+        case 0:
+          _context1.n = 1;
+          return get("/sessions/".concat(session.session_id, "/state"));
+        case 1:
+          state = _context1.v;
+          if (state) {
+            _context1.n = 2;
+            break;
+          }
+          setStatus("That session's history could not be loaded.");
+          return _context1.a(2);
+        case 2:
+          isCurrent = session.session_id === sessionId;
+          log = document.getElementById("chat-log");
+          log.innerHTML = "";
+          banner = document.createElement("div");
+          banner.className = "card";
+          banner.innerHTML = "<p class=\"card-title\">Past session \u2014 ".concat(session.last_ts.slice(0, 16).replace("T", " "), "</p>\n    <p class=\"card-note\">").concat(isCurrent ? "This is the session for the open document." : "Read-only: this session belongs to a different document, so nothing here edits the open one.", "</p>");
+          actions = actionRow(banner);
+          actions.appendChild(button("Back to current session", function () {
+            return void backToCurrentSession();
+          }));
+          log.appendChild(banner);
+          renderSessionState(state, isCurrent);
+        case 3:
+          return _context1.a(2);
+      }
+    }, _callee0);
+  }));
+  return _viewPastSession.apply(this, arguments);
+}
+function backToCurrentSession() {
+  return _backToCurrentSession.apply(this, arguments);
+}
+function _backToCurrentSession() {
+  _backToCurrentSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1() {
+    var log;
+    return _regenerator().w(function (_context10) {
+      while (1) switch (_context10.n) {
+        case 0:
+          log = document.getElementById("chat-log");
+          log.innerHTML = "";
+          appendBubble("assistant", "Hi, I'm Fuse's legal agent. Ask me anything about this contract, or start with a review.");
+          _context10.n = 1;
+          return restoreCurrentSession();
+        case 1:
+          return _context10.a(2);
+      }
+    }, _callee1);
+  }));
+  return _backToCurrentSession.apply(this, arguments);
+}
+function sendChat(_x5) {
   return _sendChat.apply(this, arguments);
 }
 function _sendChat() {
-  _sendChat = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(canned) {
+  _sendChat = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(canned) {
     var action,
       input,
       message,
@@ -296,25 +595,25 @@ function _sendChat() {
       cards,
       outcomes,
       _message,
-      _args7 = arguments,
-      _t3;
-    return _regenerator().w(function (_context7) {
-      while (1) switch (_context7.p = _context7.n) {
+      _args11 = arguments,
+      _t6;
+    return _regenerator().w(function (_context11) {
+      while (1) switch (_context11.p = _context11.n) {
         case 0:
-          action = _args7.length > 1 && _args7[1] !== undefined ? _args7[1] : "chat";
+          action = _args11.length > 1 && _args11[1] !== undefined ? _args11[1] : "chat";
           if (!busy) {
-            _context7.n = 1;
+            _context11.n = 1;
             break;
           }
-          return _context7.a(2);
+          return _context11.a(2);
         case 1:
           input = document.getElementById("chat-input");
           message = canned !== null && canned !== void 0 ? canned : input.value.trim();
           if (message) {
-            _context7.n = 2;
+            _context11.n = 2;
             break;
           }
-          return _context7.a(2);
+          return _context11.a(2);
         case 2:
           if (!canned) {
             input.value = "";
@@ -323,12 +622,12 @@ function _sendChat() {
           busy = true;
           setStatus(action === "review" ? "Running the NDA review pipeline (about two minutes)…" : "The agent is working…");
           typing = showTyping();
-          _context7.p = 3;
-          _context7.n = 4;
+          _context11.p = 3;
+          _context11.n = 4;
           return getDocumentText();
         case 4:
-          documentText = _context7.v;
-          _context7.n = 5;
+          documentText = _context11.v;
+          _context11.n = 5;
           return post("/chat", {
             session_id: sessionId,
             message: message,
@@ -336,11 +635,11 @@ function _sendChat() {
             action: action
           });
         case 5:
-          started = _context7.v;
+          started = _context11.v;
           live = {
             bubble: null
           };
-          _context7.n = 6;
+          _context11.n = 6;
           return pollReview(started.job_id, action, function (partial) {
             typing.remove();
             if (live.bubble === null) {
@@ -349,7 +648,7 @@ function _sendChat() {
             live.bubble.textContent = partial;
           });
         case 6:
-          result = _context7.v;
+          result = _context11.v;
           (_live$bubble = live.bubble) === null || _live$bubble === void 0 || _live$bubble.remove();
           if (result.reply) {
             appendBubble("assistant", result.reply);
@@ -364,36 +663,36 @@ function _sendChat() {
             return card;
           });
           if (!(inWord && findings.length > 0)) {
-            _context7.n = 8;
+            _context11.n = 8;
             break;
           }
           setStatus("Adding suggested edits to the document…");
-          _context7.n = 7;
+          _context11.n = 7;
           return applyAllFindings(findings);
         case 7:
-          outcomes = _context7.v;
+          outcomes = _context11.v;
           outcomes.forEach(function (outcome, index) {
             return markApplied(cards[index], outcome);
           });
         case 8:
           setStatus("Ready.");
-          _context7.n = 10;
+          _context11.n = 10;
           break;
         case 9:
-          _context7.p = 9;
-          _t3 = _context7.v;
-          _message = _t3 instanceof Error ? _t3.message : String(_t3);
+          _context11.p = 9;
+          _t6 = _context11.v;
+          _message = _t6 instanceof Error ? _t6.message : String(_t6);
           appendBubble("assistant", "Something went wrong: ".concat(_message, ". Please try again."));
           setStatus("Error — see chat.");
         case 10:
-          _context7.p = 10;
+          _context11.p = 10;
           typing.remove();
           busy = false;
-          return _context7.f(10);
+          return _context11.f(10);
         case 11:
-          return _context7.a(2);
+          return _context11.a(2);
       }
-    }, _callee7, null, [[3, 9, 10, 11]]);
+    }, _callee10, null, [[3, 9, 10, 11]]);
   }));
   return _sendChat.apply(this, arguments);
 }
@@ -404,11 +703,11 @@ var PHASE_LABELS = {
   review: "reviewing against the style guide",
   verify: "verifying and drafting suggestions"
 };
-function pollReview(_x4) {
+function pollReview(_x6) {
   return _pollReview.apply(this, arguments);
 }
 function _pollReview() {
-  _pollReview = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(jobId) {
+  _pollReview = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(jobId) {
     var action,
       onPartial,
       interval,
@@ -421,70 +720,70 @@ function _pollReview() {
       response,
       _state$detail,
       label,
-      _args8 = arguments,
-      _t4;
-    return _regenerator().w(function (_context8) {
-      while (1) switch (_context8.p = _context8.n) {
+      _args12 = arguments,
+      _t7;
+    return _regenerator().w(function (_context12) {
+      while (1) switch (_context12.p = _context12.n) {
         case 0:
-          action = _args8.length > 1 && _args8[1] !== undefined ? _args8[1] : "review";
-          onPartial = _args8.length > 2 ? _args8[2] : undefined;
+          action = _args12.length > 1 && _args12[1] !== undefined ? _args12[1] : "review";
+          onPartial = _args12.length > 2 ? _args12[2] : undefined;
           interval = action === "chat" ? 1000 : 4000;
           consecutiveFailures = 0;
           attempt = 0;
         case 1:
           if (!(attempt < 300)) {
-            _context8.n = 13;
+            _context12.n = 13;
             break;
           }
-          _context8.n = 2;
+          _context12.n = 2;
           return new Promise(function (resolve) {
             return setTimeout(resolve, interval);
           });
         case 2:
           state = void 0;
-          _context8.p = 3;
-          _context8.n = 4;
+          _context12.p = 3;
+          _context12.n = 4;
           return fetch("".concat(API_BASE, "/review/").concat(jobId), {
             headers: {
               "X-Tunnel-Skip-AntiPhishing-Page": "true"
             }
           });
         case 4:
-          response = _context8.v;
+          response = _context12.v;
           if (response.ok) {
-            _context8.n = 5;
+            _context12.n = 5;
             break;
           }
           throw new Error("review poll failed (".concat(response.status, ")"));
         case 5:
-          _context8.n = 6;
+          _context12.n = 6;
           return response.json();
         case 6:
-          state = _context8.v;
+          state = _context12.v;
           consecutiveFailures = 0;
-          _context8.n = 9;
+          _context12.n = 9;
           break;
         case 7:
-          _context8.p = 7;
-          _t4 = _context8.v;
+          _context12.p = 7;
+          _t7 = _context12.v;
           consecutiveFailures += 1;
           if (!(consecutiveFailures >= 8)) {
-            _context8.n = 8;
+            _context12.n = 8;
             break;
           }
-          throw _t4;
+          throw _t7;
         case 8:
           setStatus("Connection hiccup — retrying…");
-          return _context8.a(3, 12);
+          return _context12.a(3, 12);
         case 9:
           if (!(state.status === "done" && state.result)) {
-            _context8.n = 10;
+            _context12.n = 10;
             break;
           }
-          return _context8.a(2, state.result);
+          return _context12.a(2, state.result);
         case 10:
           if (!(state.status === "error")) {
-            _context8.n = 11;
+            _context12.n = 11;
             break;
           }
           throw new Error((_state$detail = state.detail) !== null && _state$detail !== void 0 ? _state$detail : "review failed");
@@ -496,14 +795,14 @@ function _pollReview() {
           setStatus(action === "review" ? "Review running: ".concat(label, "\u2026") : "The agent is ".concat(label, "\u2026"));
         case 12:
           attempt++;
-          _context8.n = 1;
+          _context12.n = 1;
           break;
         case 13:
           throw new Error("the agent timed out");
         case 14:
-          return _context8.a(2);
+          return _context12.a(2);
       }
-    }, _callee8, null, [[3, 7]]);
+    }, _callee11, null, [[3, 7]]);
   }));
   return _pollReview.apply(this, arguments);
 }
@@ -574,6 +873,7 @@ function orderByDocument(findings, documentText) {
 }
 function renderFinding(finding) {
   var _finding$suggestion3;
+  var interactive = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
   var card = document.createElement("div");
   var severityClass = finding.severity.toLowerCase();
   card.className = "card card-finding card-".concat(severityClass);
@@ -595,6 +895,9 @@ function renderFinding(finding) {
   }
   body.innerHTML = html;
   card.appendChild(body);
+  if (!interactive) {
+    return card;
+  }
   var actions = actionRow(card);
   if (inWord) {
     actions.appendChild(button("Go to clause", function () {
@@ -602,25 +905,25 @@ function renderFinding(finding) {
     }));
   }
   if (inWord && hasInlineSuggestion(finding)) {
-    var _iterator = _createForOfIteratorHelper([["Accept", function () {
+    var _iterator4 = _createForOfIteratorHelper([["Accept", function () {
         return acceptSuggestion(finding, card);
       }], ["Reject", function () {
         return rejectSuggestion(finding, card);
       }]]),
-      _step;
+      _step4;
     try {
-      for (_iterator.s(); !(_step = _iterator.n()).done;) {
-        var _step$value = _slicedToArray(_step.value, 2),
-          label = _step$value[0],
-          handler = _step$value[1];
+      for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+        var _step4$value = _slicedToArray(_step4.value, 2),
+          label = _step4$value[0],
+          handler = _step4$value[1];
         var vote = button(label, handler);
         vote.classList.add("vote");
         actions.appendChild(vote);
       }
     } catch (err) {
-      _iterator.e(err);
+      _iterator4.e(err);
     } finally {
-      _iterator.f();
+      _iterator4.f();
     }
   } else {
     var dismiss = button("Dismiss", function () {
@@ -720,69 +1023,76 @@ function resolveAnchor(doc, anchor) {
   return doc.original.slice(doc.map[at], doc.map[at + target.length - 1] + 1);
 }
 function renderContractProfile(extractions) {
+  var interactive = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
   var card = document.createElement("div");
   card.className = "card";
   var rows = extractions.map(function (extraction) {
     return "<p class=\"card-body\"><strong>".concat(extraction.field, "</strong>: ").concat(extraction.value, "</p>");
   }).join("");
+  card.innerHTML = "<p class=\"card-title\">Contract profile</p>".concat(rows);
   var quote = extractions.map(function (extraction) {
     return extraction.quote;
   }).find(function (text) {
     return text;
   });
-  card.innerHTML = "<p class=\"card-title\">Contract profile</p>".concat(rows).concat(quote ? "<span class=\"card-quote\">\"".concat(quote, "\"</span>") : "");
+  if (quote) {
+    card.innerHTML += "<span class=\"card-quote\">\"".concat(quote, "\"</span>");
+  }
+  if (!interactive) {
+    return card;
+  }
   var actions = actionRow(card);
   if (inWord && quote) {
     actions.appendChild(button("Highlight", function () {
       return selectInDocument(quote);
     }));
   }
-  var _iterator2 = _createForOfIteratorHelper([["👍 Correct", "accepted"], ["👎 Wrong", "dismissed"]]),
-    _step2;
+  var _iterator5 = _createForOfIteratorHelper([["👍 Correct", "accepted"], ["👎 Wrong", "dismissed"]]),
+    _step5;
   try {
     var _loop = function _loop() {
-      var _step2$value = _slicedToArray(_step2.value, 2),
-        label = _step2$value[0],
-        action = _step2$value[1];
+      var _step5$value = _slicedToArray(_step5.value, 2),
+        label = _step5$value[0],
+        action = _step5$value[1];
       var vote = button(label, function () {
         return recordProfileVerdict(card, extractions, action);
       });
       vote.classList.add("vote");
       actions.appendChild(vote);
     };
-    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+    for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
       _loop();
     }
   } catch (err) {
-    _iterator2.e(err);
+    _iterator5.e(err);
   } finally {
-    _iterator2.f();
+    _iterator5.f();
   }
   return card;
 }
-function recordProfileVerdict(_x5, _x6, _x7) {
+function recordProfileVerdict(_x7, _x8, _x9) {
   return _recordProfileVerdict.apply(this, arguments);
 }
 function _recordProfileVerdict() {
-  _recordProfileVerdict = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(card, extractions, action) {
+  _recordProfileVerdict = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(card, extractions, action) {
     var reason,
-      _args9 = arguments,
-      _t5;
-    return _regenerator().w(function (_context9) {
-      while (1) switch (_context9.p = _context9.n) {
+      _args13 = arguments,
+      _t8;
+    return _regenerator().w(function (_context13) {
+      while (1) switch (_context13.p = _context13.n) {
         case 0:
-          reason = _args9.length > 3 && _args9[3] !== undefined ? _args9[3] : null;
+          reason = _args13.length > 3 && _args13[3] !== undefined ? _args13[3] : null;
           if (!(action === "dismissed" && reason === null)) {
-            _context9.n = 1;
+            _context13.n = 1;
             break;
           }
           askReason(card, "What did the AI get wrong here?", function (text) {
             return recordProfileVerdict(card, extractions, action, text);
           });
-          return _context9.a(2);
+          return _context13.a(2);
         case 1:
-          _context9.p = 1;
-          _context9.n = 2;
+          _context13.p = 1;
+          _context13.n = 2;
           return post("/labels", {
             session_id: sessionId,
             criterion: "contract_profile",
@@ -794,13 +1104,13 @@ function _recordProfileVerdict() {
             })))
           });
         case 2:
-          _context9.n = 4;
+          _context13.n = 4;
           break;
         case 3:
-          _context9.p = 3;
-          _t5 = _context9.v;
+          _context13.p = 3;
+          _t8 = _context13.v;
           setStatus("Could not record the rating; it was not saved.");
-          return _context9.a(2);
+          return _context13.a(2);
         case 4:
           card.querySelectorAll("button.vote").forEach(function (vote) {
             return vote.remove();
@@ -808,9 +1118,9 @@ function _recordProfileVerdict() {
           card.style.opacity = "0.6";
           setStatus(action === "accepted" ? "Profile marked correct — recorded." : "Profile marked wrong — recorded.");
         case 5:
-          return _context9.a(2);
+          return _context13.a(2);
       }
-    }, _callee9, null, [[1, 3]]);
+    }, _callee12, null, [[1, 3]]);
   }));
   return _recordProfileVerdict.apply(this, arguments);
 }
@@ -821,34 +1131,34 @@ function button(label, onClick) {
   el.onclick = onClick;
   return el;
 }
-function selectFirstMatch(_x8) {
+function selectFirstMatch(_x0) {
   return _selectFirstMatch.apply(this, arguments);
 }
 function _selectFirstMatch() {
-  _selectFirstMatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(candidates) {
-    var _t6;
-    return _regenerator().w(function (_context1) {
-      while (1) switch (_context1.p = _context1.n) {
+  _selectFirstMatch = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(candidates) {
+    var _t9;
+    return _regenerator().w(function (_context15) {
+      while (1) switch (_context15.p = _context15.n) {
         case 0:
-          _context1.p = 0;
-          _context1.n = 1;
+          _context15.p = 0;
+          _context15.n = 1;
           return Word.run(/*#__PURE__*/function () {
-            var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(context) {
-              var body, doc, attempts, _iterator3, _step3, _resolveAnchor, candidate, anchor, _i3, _arr, length, _attempt, _i2, _attempts, attempt, results;
-              return _regenerator().w(function (_context0) {
-                while (1) switch (_context0.n) {
+            var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(context) {
+              var body, doc, attempts, _iterator7, _step7, _resolveAnchor, candidate, anchor, _i3, _arr, length, _attempt, _i2, _attempts, attempt, results;
+              return _regenerator().w(function (_context14) {
+                while (1) switch (_context14.n) {
                   case 0:
                     body = context.document.body;
                     body.load("text");
-                    _context0.n = 1;
+                    _context14.n = 1;
                     return context.sync();
                   case 1:
                     doc = normalizeWithMap(body.text);
                     attempts = [];
-                    _iterator3 = _createForOfIteratorHelper(candidates);
+                    _iterator7 = _createForOfIteratorHelper(candidates);
                     try {
-                      for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
-                        candidate = _step3.value;
+                      for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+                        candidate = _step7.value;
                         anchor = (_resolveAnchor = resolveAnchor(doc, candidate)) !== null && _resolveAnchor !== void 0 ? _resolveAnchor : candidate;
                         for (_i3 = 0, _arr = [SEARCH_LIMIT, 80, 40]; _i3 < _arr.length; _i3++) {
                           length = _arr[_i3];
@@ -859,14 +1169,14 @@ function _selectFirstMatch() {
                         }
                       }
                     } catch (err) {
-                      _iterator3.e(err);
+                      _iterator7.e(err);
                     } finally {
-                      _iterator3.f();
+                      _iterator7.f();
                     }
                     _i2 = 0, _attempts = attempts;
                   case 2:
                     if (!(_i2 < _attempts.length)) {
-                      _context0.n = 6;
+                      _context14.n = 6;
                       break;
                     }
                     attempt = _attempts[_i2];
@@ -874,83 +1184,83 @@ function _selectFirstMatch() {
                       matchCase: false
                     });
                     results.load("items");
-                    _context0.n = 3;
+                    _context14.n = 3;
                     return context.sync();
                   case 3:
                     if (!(results.items.length > 0)) {
-                      _context0.n = 5;
+                      _context14.n = 5;
                       break;
                     }
                     results.items[0].select();
-                    _context0.n = 4;
+                    _context14.n = 4;
                     return context.sync();
                   case 4:
-                    return _context0.a(2, true);
+                    return _context14.a(2, true);
                   case 5:
                     _i2++;
-                    _context0.n = 2;
+                    _context14.n = 2;
                     break;
                   case 6:
-                    return _context0.a(2, false);
+                    return _context14.a(2, false);
                 }
-              }, _callee0);
+              }, _callee13);
             }));
-            return function (_x23) {
+            return function (_x25) {
               return _ref9.apply(this, arguments);
             };
           }());
         case 1:
-          return _context1.a(2, _context1.v);
+          return _context15.a(2, _context15.v);
         case 2:
-          _context1.p = 2;
-          _t6 = _context1.v;
-          return _context1.a(2, false);
+          _context15.p = 2;
+          _t9 = _context15.v;
+          return _context15.a(2, false);
       }
-    }, _callee1, null, [[0, 2]]);
+    }, _callee14, null, [[0, 2]]);
   }));
   return _selectFirstMatch.apply(this, arguments);
 }
-function goToFinding(_x9) {
+function goToFinding(_x1) {
   return _goToFinding.apply(this, arguments);
 }
 function _goToFinding() {
-  _goToFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(finding) {
+  _goToFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(finding) {
     var _finding$suggestion6;
     var candidates, found;
-    return _regenerator().w(function (_context10) {
-      while (1) switch (_context10.n) {
+    return _regenerator().w(function (_context16) {
+      while (1) switch (_context16.n) {
         case 0:
           candidates = [(_finding$suggestion6 = finding.suggestion) === null || _finding$suggestion6 === void 0 ? void 0 : _finding$suggestion6.new, searchAnchor(finding)].filter(function (candidate) {
             return Boolean(candidate);
           });
-          _context10.n = 1;
+          _context16.n = 1;
           return selectFirstMatch(candidates);
         case 1:
-          found = _context10.v;
+          found = _context16.v;
           if (!found) {
             setStatus("Couldn't locate this clause in the document.");
           }
         case 2:
-          return _context10.a(2);
+          return _context16.a(2);
       }
-    }, _callee10);
+    }, _callee15);
   }));
   return _goToFinding.apply(this, arguments);
 }
-function selectInDocument(_x0) {
+function selectInDocument(_x10) {
   return _selectInDocument.apply(this, arguments);
 }
 function _selectInDocument() {
-  _selectInDocument = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee11(text) {
-    return _regenerator().w(function (_context11) {
-      while (1) switch (_context11.n) {
+  _selectInDocument = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(text) {
+    return _regenerator().w(function (_context17) {
+      while (1) switch (_context17.n) {
         case 0:
-          _context11.n = 1;
+          _context17.n = 1;
           return selectFirstMatch([text]);
         case 1:
-          return _context11.a(2);
+          return _context17.a(2);
       }
-    }, _callee11);
+    }, _callee16);
   }));
   return _selectInDocument.apply(this, arguments);
 }
@@ -979,14 +1289,14 @@ function planAction(finding) {
   return null;
 }
 var APPLY_PAUSE_MS = 150;
-function applyAllFindings(_x1) {
+function applyAllFindings(_x11) {
   return _applyAllFindings.apply(this, arguments);
 }
 function _applyAllFindings() {
-  _applyAllFindings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee13(findings) {
-    var plans, results, total, _t8;
-    return _regenerator().w(function (_context13) {
-      while (1) switch (_context13.p = _context13.n) {
+  _applyAllFindings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(findings) {
+    var plans, results, total, _t1;
+    return _regenerator().w(function (_context19) {
+      while (1) switch (_context19.p = _context19.n) {
         case 0:
           plans = findings.map(planAction);
           results = plans.map(function (plan) {
@@ -995,17 +1305,17 @@ function _applyAllFindings() {
           total = plans.filter(function (plan) {
             return plan !== null;
           }).length;
-          _context13.p = 1;
-          _context13.n = 2;
+          _context19.p = 1;
+          _context19.n = 2;
           return Word.run(/*#__PURE__*/function () {
-            var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee12(context) {
-              var body, doc, searches, applied, index, _searches$index, plan, items, _t7;
-              return _regenerator().w(function (_context12) {
-                while (1) switch (_context12.p = _context12.n) {
+            var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(context) {
+              var body, doc, searches, applied, index, _searches$index, plan, items, _t0;
+              return _regenerator().w(function (_context18) {
+                while (1) switch (_context18.p = _context18.n) {
                   case 0:
                     body = context.document.body;
                     body.load("text");
-                    _context12.n = 1;
+                    _context18.n = 1;
                     return context.sync();
                   case 1:
                     doc = normalizeWithMap(body.text);
@@ -1022,65 +1332,65 @@ function _applyAllFindings() {
                     searches.forEach(function (collection) {
                       return collection === null || collection === void 0 ? void 0 : collection.load("items,text");
                     });
-                    _context12.n = 2;
+                    _context18.n = 2;
                     return context.sync();
                   case 2:
                     applied = 0;
                     index = 0;
                   case 3:
                     if (!(index < plans.length)) {
-                      _context12.n = 10;
+                      _context18.n = 10;
                       break;
                     }
                     plan = plans[index];
                     items = (_searches$index = searches[index]) === null || _searches$index === void 0 ? void 0 : _searches$index.items;
                     if (!(!plan || !items || items.length === 0)) {
-                      _context12.n = 4;
+                      _context18.n = 4;
                       break;
                     }
-                    return _context12.a(3, 9);
+                    return _context18.a(3, 9);
                   case 4:
                     applied += 1;
                     setStatus("Applying edit ".concat(applied, " of ").concat(total, "\u2026"));
                     items[0].insertOoxml(plan.buildOoxml(items[0].text), plan.kind === "insert" ? Word.InsertLocation.after : Word.InsertLocation.replace);
-                    _context12.p = 5;
-                    _context12.n = 6;
+                    _context18.p = 5;
+                    _context18.n = 6;
                     return context.sync();
                   case 6:
                     results[index] = plan.kind;
-                    _context12.n = 8;
+                    _context18.n = 8;
                     break;
                   case 7:
-                    _context12.p = 7;
-                    _t7 = _context12.v;
+                    _context18.p = 7;
+                    _t0 = _context18.v;
                   case 8:
-                    _context12.n = 9;
+                    _context18.n = 9;
                     return new Promise(function (resolve) {
                       return setTimeout(resolve, APPLY_PAUSE_MS);
                     });
                   case 9:
                     index++;
-                    _context12.n = 3;
+                    _context18.n = 3;
                     break;
                   case 10:
-                    return _context12.a(2);
+                    return _context18.a(2);
                 }
-              }, _callee12, null, [[5, 7]]);
+              }, _callee17, null, [[5, 7]]);
             }));
-            return function (_x24) {
+            return function (_x26) {
               return _ref0.apply(this, arguments);
             };
           }());
         case 2:
-          _context13.n = 4;
+          _context19.n = 4;
           break;
         case 3:
-          _context13.p = 3;
-          _t8 = _context13.v;
+          _context19.p = 3;
+          _t1 = _context19.v;
         case 4:
-          return _context13.a(2, results);
+          return _context19.a(2, results);
       }
-    }, _callee13, null, [[1, 3]]);
+    }, _callee18, null, [[1, 3]]);
   }));
   return _applyAllFindings.apply(this, arguments);
 }
@@ -1118,48 +1428,48 @@ function markSectionDone(section, note) {
   status.textContent = note;
   section.appendChild(status);
 }
-function revertTrackedChanges(_x10) {
+function revertTrackedChanges(_x12) {
   return _revertTrackedChanges.apply(this, arguments);
 }
 function _revertTrackedChanges() {
-  _revertTrackedChanges = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee15(finding) {
+  _revertTrackedChanges = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(finding) {
     var _finding$suggestion7, _finding$suggestion8;
-    var targets, _t0;
-    return _regenerator().w(function (_context15) {
-      while (1) switch (_context15.p = _context15.n) {
+    var targets, _t11;
+    return _regenerator().w(function (_context21) {
+      while (1) switch (_context21.p = _context21.n) {
         case 0:
           targets = [(_finding$suggestion7 = finding.suggestion) === null || _finding$suggestion7 === void 0 ? void 0 : _finding$suggestion7.new, (_finding$suggestion8 = finding.suggestion) === null || _finding$suggestion8 === void 0 ? void 0 : _finding$suggestion8.old].filter(function (target) {
             return Boolean(target);
           });
-          _context15.p = 1;
-          _context15.n = 2;
+          _context21.p = 1;
+          _context21.n = 2;
           return Word.run(/*#__PURE__*/function () {
-            var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee14(context) {
-              var body, doc, reverted, _iterator4, _step4, _resolveAnchor3, target, anchor, _i4, _arr2, length, results, _t9;
-              return _regenerator().w(function (_context14) {
-                while (1) switch (_context14.p = _context14.n) {
+            var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(context) {
+              var body, doc, reverted, _iterator8, _step8, _resolveAnchor3, target, anchor, _i4, _arr2, length, results, _t10;
+              return _regenerator().w(function (_context20) {
+                while (1) switch (_context20.p = _context20.n) {
                   case 0:
                     body = context.document.body;
                     body.load("text");
-                    _context14.n = 1;
+                    _context20.n = 1;
                     return context.sync();
                   case 1:
                     doc = normalizeWithMap(body.text);
                     reverted = false;
-                    _iterator4 = _createForOfIteratorHelper(targets);
-                    _context14.p = 2;
-                    _iterator4.s();
+                    _iterator8 = _createForOfIteratorHelper(targets);
+                    _context20.p = 2;
+                    _iterator8.s();
                   case 3:
-                    if ((_step4 = _iterator4.n()).done) {
-                      _context14.n = 9;
+                    if ((_step8 = _iterator8.n()).done) {
+                      _context20.n = 9;
                       break;
                     }
-                    target = _step4.value;
+                    target = _step8.value;
                     anchor = (_resolveAnchor3 = resolveAnchor(doc, target)) !== null && _resolveAnchor3 !== void 0 ? _resolveAnchor3 : target;
                     _i4 = 0, _arr2 = [SEARCH_LIMIT, 80];
                   case 4:
                     if (!(_i4 < _arr2.length)) {
-                      _context14.n = 8;
+                      _context20.n = 8;
                       break;
                     }
                     length = _arr2[_i4];
@@ -1167,165 +1477,165 @@ function _revertTrackedChanges() {
                       matchCase: false
                     });
                     results.load("items");
-                    _context14.n = 5;
+                    _context20.n = 5;
                     return context.sync();
                   case 5:
                     if (!(results.items.length > 0)) {
-                      _context14.n = 7;
+                      _context20.n = 7;
                       break;
                     }
                     results.items[0].getTrackedChanges().rejectAll();
-                    _context14.n = 6;
+                    _context20.n = 6;
                     return context.sync();
                   case 6:
                     reverted = true;
-                    return _context14.a(3, 8);
+                    return _context20.a(3, 8);
                   case 7:
                     _i4++;
-                    _context14.n = 4;
+                    _context20.n = 4;
                     break;
                   case 8:
-                    _context14.n = 3;
+                    _context20.n = 3;
                     break;
                   case 9:
-                    _context14.n = 11;
+                    _context20.n = 11;
                     break;
                   case 10:
-                    _context14.p = 10;
-                    _t9 = _context14.v;
-                    _iterator4.e(_t9);
+                    _context20.p = 10;
+                    _t10 = _context20.v;
+                    _iterator8.e(_t10);
                   case 11:
-                    _context14.p = 11;
-                    _iterator4.f();
-                    return _context14.f(11);
+                    _context20.p = 11;
+                    _iterator8.f();
+                    return _context20.f(11);
                   case 12:
-                    return _context14.a(2, reverted);
+                    return _context20.a(2, reverted);
                 }
-              }, _callee14, null, [[2, 10, 11, 12]]);
+              }, _callee19, null, [[2, 10, 11, 12]]);
             }));
-            return function (_x25) {
+            return function (_x27) {
               return _ref1.apply(this, arguments);
             };
           }());
         case 2:
-          return _context15.a(2, _context15.v);
+          return _context21.a(2, _context21.v);
         case 3:
-          _context15.p = 3;
-          _t0 = _context15.v;
-          return _context15.a(2, false);
+          _context21.p = 3;
+          _t11 = _context21.v;
+          return _context21.a(2, false);
       }
-    }, _callee15, null, [[1, 3]]);
+    }, _callee20, null, [[1, 3]]);
   }));
   return _revertTrackedChanges.apply(this, arguments);
 }
-function acceptSuggestion(_x11, _x12) {
+function acceptSuggestion(_x13, _x14) {
   return _acceptSuggestion.apply(this, arguments);
 }
 function _acceptSuggestion() {
-  _acceptSuggestion = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee16(finding, card) {
-    return _regenerator().w(function (_context16) {
-      while (1) switch (_context16.n) {
+  _acceptSuggestion = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(finding, card) {
+    return _regenerator().w(function (_context22) {
+      while (1) switch (_context22.n) {
         case 0:
-          _context16.n = 1;
+          _context22.n = 1;
           return recordLabel(finding, "accepted", "suggestion");
         case 1:
           markSectionDone(card, "Accepted — the tracked change stays in the document for the counterparty");
           setStatus("Accepted the suggestion for ".concat(findingLabel(finding), ". Recorded for the eval loop."));
         case 2:
-          return _context16.a(2);
+          return _context22.a(2);
       }
-    }, _callee16);
+    }, _callee21);
   }));
   return _acceptSuggestion.apply(this, arguments);
 }
-function rejectSuggestion(_x13, _x14) {
+function rejectSuggestion(_x15, _x16) {
   return _rejectSuggestion.apply(this, arguments);
 }
 function _rejectSuggestion() {
-  _rejectSuggestion = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee18(finding, card) {
-    return _regenerator().w(function (_context18) {
-      while (1) switch (_context18.n) {
+  _rejectSuggestion = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee23(finding, card) {
+    return _regenerator().w(function (_context24) {
+      while (1) switch (_context24.n) {
         case 0:
           askReason(card, "Why is this suggestion wrong? This trains the AI.", /*#__PURE__*/function () {
-            var _ref10 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee17(reason) {
+            var _ref10 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee22(reason) {
               var reverted;
-              return _regenerator().w(function (_context17) {
-                while (1) switch (_context17.n) {
+              return _regenerator().w(function (_context23) {
+                while (1) switch (_context23.n) {
                   case 0:
-                    _context17.n = 1;
+                    _context23.n = 1;
                     return revertTrackedChanges(finding);
                   case 1:
-                    reverted = _context17.v;
+                    reverted = _context23.v;
                     if (!reverted && hasInlineSuggestion(finding)) {
                       setStatus("Could not undo the tracked change automatically; reject it from Word's review pane.");
                     }
-                    _context17.n = 2;
+                    _context23.n = 2;
                     return recordLabel(finding, "dismissed", "suggestion", reason);
                   case 2:
                     markSectionDone(card, reverted ? "Rejected — the edit was removed from the document" : "Rejected");
                     setStatus("Rejected the suggestion for ".concat(findingLabel(finding), ". The agent sees this next turn."));
                   case 3:
-                    return _context17.a(2);
+                    return _context23.a(2);
                 }
-              }, _callee17);
+              }, _callee22);
             }));
-            return function (_x26) {
+            return function (_x28) {
               return _ref10.apply(this, arguments);
             };
           }());
         case 1:
-          return _context18.a(2);
+          return _context24.a(2);
       }
-    }, _callee18);
+    }, _callee23);
   }));
   return _rejectSuggestion.apply(this, arguments);
 }
-function dismissFinding(_x15, _x16) {
+function dismissFinding(_x17, _x18) {
   return _dismissFinding.apply(this, arguments);
 }
 function _dismissFinding() {
-  _dismissFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee20(finding, card) {
-    return _regenerator().w(function (_context20) {
-      while (1) switch (_context20.n) {
+  _dismissFinding = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee25(finding, card) {
+    return _regenerator().w(function (_context26) {
+      while (1) switch (_context26.n) {
         case 0:
           askReason(card, "Why should this be dismissed? This trains the AI.", /*#__PURE__*/function () {
-            var _ref11 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee19(reason) {
-              return _regenerator().w(function (_context19) {
-                while (1) switch (_context19.n) {
+            var _ref11 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee24(reason) {
+              return _regenerator().w(function (_context25) {
+                while (1) switch (_context25.n) {
                   case 0:
-                    _context19.n = 1;
+                    _context25.n = 1;
                     return recordLabel(finding, "dismissed", "finding", reason);
                   case 1:
                     markSectionDone(card, "Dismissed");
                     card.style.opacity = "0.5";
                     setStatus("Dismissed ".concat(findingLabel(finding), ". The agent sees this next turn."));
                   case 2:
-                    return _context19.a(2);
+                    return _context25.a(2);
                 }
-              }, _callee19);
+              }, _callee24);
             }));
-            return function (_x27) {
+            return function (_x29) {
               return _ref11.apply(this, arguments);
             };
           }());
         case 1:
-          return _context20.a(2);
+          return _context26.a(2);
       }
-    }, _callee20);
+    }, _callee25);
   }));
   return _dismissFinding.apply(this, arguments);
 }
-function recordLabel(_x17, _x18, _x19, _x20) {
+function recordLabel(_x19, _x20, _x21, _x22) {
   return _recordLabel.apply(this, arguments);
 }
 function _recordLabel() {
-  _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee21(finding, action, target, reason) {
-    var _t1;
-    return _regenerator().w(function (_context21) {
-      while (1) switch (_context21.p = _context21.n) {
+  _recordLabel = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee26(finding, action, target, reason) {
+    var _t12;
+    return _regenerator().w(function (_context27) {
+      while (1) switch (_context27.p = _context27.n) {
         case 0:
-          _context21.p = 0;
-          _context21.n = 1;
+          _context27.p = 0;
+          _context27.n = 1;
           return post("/labels", {
             session_id: sessionId,
             criterion: findingLabel(finding),
@@ -1334,16 +1644,16 @@ function _recordLabel() {
             reason: reason !== null && reason !== void 0 ? reason : null
           });
         case 1:
-          _context21.n = 3;
+          _context27.n = 3;
           break;
         case 2:
-          _context21.p = 2;
-          _t1 = _context21.v;
-          setStatus("Label not recorded: ".concat(String(_t1)));
+          _context27.p = 2;
+          _t12 = _context27.v;
+          setStatus("Label not recorded: ".concat(String(_t12)));
         case 3:
-          return _context21.a(2);
+          return _context27.a(2);
       }
-    }, _callee21, null, [[0, 2]]);
+    }, _callee26, null, [[0, 2]]);
   }));
   return _recordLabel.apply(this, arguments);
 }
