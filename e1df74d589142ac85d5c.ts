@@ -700,8 +700,11 @@ var PHASE_LABELS = {
   starting: "starting up",
   thinking: "thinking",
   classify: "classifying the document",
-  review: "reviewing against the style guide",
-  verify: "verifying and drafting suggestions"
+  review: "reviewing criteria C1–C4 in parallel",
+  residual: "sweeping residual clauses",
+  verify: "verifying each finding independently",
+  suggest: "drafting suggestions",
+  reconcile: "reconciling overlapping edits"
 };
 function pollReview(_x6) {
   return _pollReview.apply(this, arguments);
